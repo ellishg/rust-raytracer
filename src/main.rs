@@ -24,11 +24,11 @@ struct Color {
 }
 
 impl Color {
-    fn new(r: f32, g: f32, b: f32) -> Color {
-        Color::new_alpha(r, g, b, 1.0)
+    fn rgb(r: f32, g: f32, b: f32) -> Color {
+        Color::rgba(r, g, b, 1.0)
     }
 
-    fn new_alpha(r: f32, g: f32, b: f32, a: f32) -> Color {
+    fn rgba(r: f32, g: f32, b: f32, a: f32) -> Color {
         let r = clamp(r, 0.0, 1.0);
         let g = clamp(g, 0.0, 1.0);
         let b = clamp(b, 0.0, 1.0);
@@ -42,6 +42,44 @@ impl Color {
             (self.g * 255.0) as u8,
             (self.b * 255.0) as u8,
         )
+    }
+}
+
+impl std::ops::Add for Color {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self {
+        // TODO: How should we add colors?
+        Color::rgba(
+            self.r + rhs.r,
+            self.g + rhs.g,
+            self.b + rhs.b,
+            self.a + rhs.a,
+        )
+    }
+}
+
+impl std::ops::Mul for Color {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self {
+        Color::rgba(
+            self.r * rhs.r,
+            self.g * rhs.g,
+            self.b * rhs.b,
+            self.a * rhs.a,
+        )
+    }
+}
+impl std::ops::Mul<f32> for Color {
+    type Output = Self;
+    fn mul(self, rhs: f32) -> Self {
+        // TODO: How should we multiply colors?
+        Color::rgba(self.r * rhs, self.g * rhs, self.b * rhs, self.a * rhs)
+    }
+}
+impl std::ops::Mul<Color> for f32 {
+    type Output = Color;
+    fn mul(self, rhs: Color) -> Color {
+        rhs * self
     }
 }
 
@@ -153,23 +191,10 @@ impl World {
                         let intersection_point: Point3<f32> = ray.get_point_on_ray(t).into();
                         let light_vector = intersection_point - light.position;
                         let intensity = clamp(InnerSpace::dot(-light_vector, normal), 0.0, 1.0);
-                        (
-                            intensity * light.color.r,
-                            intensity * light.color.g,
-                            intensity * light.color.b,
-                        )
+                        intensity * light.color
                     })
-                    // TODO: This is not the best way to add colors.
-                    .fold((0.0, 0.0, 0.0), |acc, x| {
-                        // TODO: Move this to method in Color struct.
-                        (acc.0 + x.0, acc.1 + x.1, acc.2 + x.2)
-                    });
-                // TODO: This is not the best way to combine colors, I think...
-                // TODO: Move this to method in Color struct.
-                let r = light_color.0 * color.r;
-                let g = light_color.1 * color.g;
-                let b = light_color.2 * color.b;
-                Color::new(r, g, b)
+                    .fold(Color::rgba(0.0, 0.0, 0.0, 0.0), |acc, x| acc + x);
+                color * light_color
             }
         }
     }
@@ -287,14 +312,14 @@ fn main() {
         (0.0, 0.0, 0.0).into(),
         (0.0, 1.0, 0.0).into(),
     );
-    let mut world = World::new(camera, Color::new(0.2, 0.2, 0.2));
-    let object = Object::new_sphere((0.0, 0.0, 0.0).into(), 1.0, Color::new(1.0, 0.0, 0.0));
+    let mut world = World::new(camera, Color::rgb(0.2, 0.2, 0.2));
+    let object = Object::new_sphere((0.0, 0.0, 0.0).into(), 1.0, Color::rgb(1.0, 0.0, 0.0));
     world.add_object(object);
-    let object = Object::new_sphere((1.0, 0.5, 0.0).into(), 1.001, Color::new(0.0, 1.0, 0.0));
+    let object = Object::new_sphere((1.0, 0.5, 0.0).into(), 1.001, Color::rgb(0.0, 1.0, 0.0));
     world.add_object(object);
     world.add_light(Light::new(
         (-1.0, -10.0, -1.0).into(),
-        Color::new(1.0, 1.0, 1.0),
+        Color::rgb(1.0, 1.0, 1.0),
     ));
 
     world.render("foo.png").unwrap();
