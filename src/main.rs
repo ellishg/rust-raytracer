@@ -113,7 +113,7 @@ impl Ray {
 // TODO: Move each struct to their own file
 struct World {
     camera: Camera,
-    objects: Vec<Object>,
+    objects: Vec<Box<dyn Object>>,
     lights: Vec<Light>,
     background_color: Color,
 }
@@ -128,7 +128,7 @@ impl World {
         }
     }
 
-    fn add_object(&mut self, object: Object) {
+    fn add_object(&mut self, object: Box<dyn Object>) {
         self.objects.push(object);
     }
 
@@ -162,40 +162,21 @@ impl World {
             .objects
             .iter()
             .filter_map(|object| match object.get_intersection(ray) {
-                Some((t, normal)) => Some((object, t, normal)),
+                Some(t) => Some((object, t)),
                 None => None,
             })
             // Just a hacky way to find the smallest t value.
-            .min_by(|(_, t_left, _), (_, t_right, _)| {
+            .min_by(|(_, t_left), (_, t_right)| {
                 t_left
                     .partial_cmp(t_right)
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
-        if let Some((object, t, normal)) = closest_object {
+        if let Some((object, t)) = closest_object {
             // Compute the color of the object that the ray first hits.
-            self.get_color(ray, object, t, normal)
+            object.get_color(self, ray, t)
         } else {
             // If the ray hits nothing, return the background color.
             self.background_color
-        }
-    }
-
-    // I'm not sure if this is the correct way to separate these methods.
-    fn get_color(&self, ray: Ray, object: &Object, t: f32, normal: Vector3<f32>) -> Color {
-        match object.object_type {
-            ObjectType::Sphere { color } => {
-                let light_color = self
-                    .lights
-                    .iter()
-                    .map(|light| {
-                        let intersection_point: Point3<f32> = ray.get_point_on_ray(t).into();
-                        let light_vector = intersection_point - light.position;
-                        let intensity = clamp(InnerSpace::dot(-light_vector, normal), 0.0, 1.0);
-                        intensity * light.color
-                    })
-                    .fold(Color::rgba(0.0, 0.0, 0.0, 0.0), |acc, x| acc + x);
-                color * light_color
-            }
         }
     }
 }
@@ -228,71 +209,89 @@ impl Camera {
     }
 }
 
-enum ObjectType {
-    Sphere { color: Color },
+// TODO: Make Material enum or trait.
+
+// NOTE: Another option would be to make Object hold an enum of all possible types.
+trait Object {
+    fn get_intersection(&self, ray: Ray) -> Option<f32>;
+    fn get_color(&self, world: &World, ray: Ray, t: f32) -> Color;
 }
 
-struct Object {
+struct Sphere {
     world_to_object: Matrix4<f32>,
-    object_type: ObjectType,
+    color: Color,
 }
 
-impl Object {
+impl Sphere {
     // FIXME: I don't think radius works correctly.
-    fn new_sphere(position: Point3<f32>, radius: f32, color: Color) -> Object {
+    fn new(position: Point3<f32>, radius: f32, color: Color) -> Box<dyn Object> {
         let scale = Matrix4::from_scale(radius);
         let translate = Matrix4::from_translation(position.to_homogeneous().truncate());
         let object_to_world = translate * scale;
         let world_to_object = Transform::inverse_transform(&object_to_world).unwrap();
-        Object {
+        Box::new(Sphere {
             world_to_object,
-            object_type: ObjectType::Sphere { color },
-        }
-    }
-
-    fn get_intersection(&self, ray: Ray) -> Option<(f32, Vector3<f32>)> {
-        let ray = ray.transform_using(self.world_to_object);
-        match self.object_type {
-            ObjectType::Sphere { color: _ } => {
-                let position = ray.position.to_homogeneous().truncate();
-                let direction = ray.direction;
-                // Sphere is centered at origin with radius 1 (thanks to the matrix transformations).
-                let closest_point_to_origin =
-                    position - InnerSpace::dot(position, direction) * direction;
-                let dist_to_origin = InnerSpace::magnitude(closest_point_to_origin);
-                if dist_to_origin <= 1.0 {
-                    let t = -InnerSpace::dot(position, direction);
-                    let delta = (1.0 - dist_to_origin).sqrt(); // TODO: Is this correct?
-                    let ts: [f32; 2] = [t - delta, t + delta];
-                    // Find the smallest positive t value.
-                    let t = ts
-                        .iter()
-                        .filter(|t| t.is_sign_positive())
-                        // TODO: This could probably be simplified.
-                        .map(|t| *t)
-                        .min_by(|x, y| x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal));
-                    if let Some(t) = t {
-                        let normal: Vector3<f32> =
-                            InnerSpace::normalize(ray.get_point_on_ray(t).into());
-                        // Transform normal back to world space.
-                        let normal = self
-                            .world_to_object
-                            .inverse_transform_vector(normal)
-                            .unwrap();
-                        let normal = InnerSpace::normalize(normal);
-                        Some((t, normal))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            }
-        }
+            color,
+        })
     }
 }
 
-// TODO: Use enum to define light types.
+impl Object for Sphere {
+    fn get_intersection(&self, ray: Ray) -> Option<f32> {
+        let ray = ray.transform_using(self.world_to_object);
+        let position = ray.position.to_homogeneous().truncate();
+        let direction = ray.direction;
+        // Sphere is centered at origin with radius 1 (thanks to the matrix transformations).
+        let closest_point_to_origin = position - InnerSpace::dot(position, direction) * direction;
+        let dist_to_origin = InnerSpace::magnitude(closest_point_to_origin);
+        if dist_to_origin <= 1.0 {
+            let t = -InnerSpace::dot(position, direction);
+            // TODO: Is this correct?
+            let delta = (1.0 - dist_to_origin).sqrt();
+            // Find the smallest positive t value.
+            [t - delta, t + delta]
+                .iter()
+                .filter(|t| t.is_sign_positive())
+                // TODO: This could probably be simplified.
+                .map(|t| *t)
+                .min_by(|x, y| x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal))
+        } else {
+            None
+        }
+    }
+
+    fn get_color(&self, world: &World, ray: Ray, t: f32) -> Color {
+        let normal = {
+            let ray = ray.transform_using(self.world_to_object);
+            let normal: Vector3<f32> = InnerSpace::normalize(ray.get_point_on_ray(t).into());
+            // Transform normal back to world space.
+            InnerSpace::normalize(
+                self.world_to_object
+                    .inverse_transform_vector(normal)
+                    .unwrap(),
+            )
+        };
+        let light_color = world
+            .lights
+            .iter()
+            .map(|light| {
+                let intersection_point: Point3<f32> = ray.get_point_on_ray(t).into();
+                let light_vector = intersection_point - light.position;
+                let light_direction = InnerSpace::normalize(light_vector);
+                let falloff = 1.0 / (0.001 + InnerSpace::magnitude2(light_vector));
+                let intensity = clamp(
+                    falloff * InnerSpace::dot(-light_direction, normal),
+                    0.0,
+                    1.0,
+                );
+                intensity * light.color
+            })
+            .fold(Color::rgba(0.0, 0.0, 0.0, 0.0), |acc, x| acc + x);
+        self.color * light_color
+    }
+}
+
+// TODO: Use enum or trait to define light types.
 struct Light {
     position: Point3<f32>,
     color: Color,
@@ -306,21 +305,20 @@ impl Light {
 
 fn main() {
     let camera = Camera::new(
-        200,
-        200,
+        500,
+        500,
         (0.0, 2.0, -10.0).into(),
         (0.0, 0.0, 0.0).into(),
         (0.0, 1.0, 0.0).into(),
     );
     let mut world = World::new(camera, Color::rgb(0.2, 0.2, 0.2));
-    let object = Object::new_sphere((0.0, 0.0, 0.0).into(), 1.0, Color::rgb(1.0, 0.0, 0.0));
+    let object = Sphere::new((0.0, 0.0, 0.0).into(), 1.0, Color::rgb(1.0, 0.0, 0.0));
     world.add_object(object);
-    let object = Object::new_sphere((1.0, 0.5, 0.0).into(), 1.001, Color::rgb(0.0, 1.0, 0.0));
+    let object = Sphere::new((1.0, 0.5, 0.0).into(), 1.001, Color::rgb(0.0, 1.0, 0.0));
     world.add_object(object);
-    world.add_light(Light::new(
-        (-1.0, -10.0, -1.0).into(),
-        Color::rgb(1.0, 1.0, 1.0),
-    ));
+    // TODO: Fix coordinate system. I think +x is to the left?
+    let light = Light::new((-1.0, -1.0, -1.5).into(), Color::rgb(1.0, 1.0, 1.0));
+    world.add_light(light);
 
     world.render("foo.png").unwrap();
 }

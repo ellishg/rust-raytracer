@@ -15,6 +15,7 @@
   - [ ] Triangle Meshes
 - Materials
   - [ ] Flat
+  - [ ] Phong
   - [ ] Reflective
   - [ ] Transparent
   - [ ] Texture
