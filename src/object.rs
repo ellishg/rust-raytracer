@@ -1,5 +1,5 @@
-use cgmath::{InnerSpace, Transform};
-use cgmath::{Matrix4, Point3, Vector3};
+use cgmath::{InnerSpace, MetricSpace, Transform};
+use cgmath::{Matrix3, Matrix4, Point3, Vector3};
 
 use super::color::Color;
 use super::ray::Ray;
@@ -77,6 +77,84 @@ impl Object for Sphere {
                 let falloff = 1.0 / (0.001 + InnerSpace::magnitude2(light_vector));
                 let intensity = clamp(
                     falloff * InnerSpace::dot(-light_direction, normal),
+                    0.0,
+                    1.0,
+                );
+                intensity * light.color
+            })
+            .fold(Color::rgba(0.0, 0.0, 0.0, 0.0), |acc, x| acc + x);
+        self.color * light_color
+    }
+}
+
+pub struct Plane {
+    world_to_object: Matrix4<f32>,
+    color: Color,
+}
+
+impl Plane {
+    pub fn new(position: Point3<f32>, normal: Vector3<f32>, color: Color) -> Box<Plane> {
+        let normal = normal.normalize();
+        // Pick an arbitrary orthogonal vector.
+        let new_x_axis = {
+            let axis: Vector3<f32> = if normal.x != 0.0 {
+                (-normal.y / normal.x, 1.0, 0.0).into()
+            } else if normal.y != 0.0 {
+                (1.0, -normal.x / normal.y, 0.0).into()
+            } else {
+                (1.0, 0.0, -normal.x / normal.z).into()
+            };
+            axis.normalize()
+        };
+        let new_y_axis = normal;
+        let new_z_axis = new_x_axis.cross(new_y_axis).normalize();
+        let rotate: Matrix4<f32> = Matrix3::from_cols(new_x_axis, new_y_axis, new_z_axis).into();
+        let translate = Matrix4::from_translation(position.to_homogeneous().truncate());
+        let object_to_world = rotate * translate;
+        let world_to_object = Transform::inverse_transform(&object_to_world).unwrap();
+        Box::new(Plane {
+            world_to_object,
+            color,
+        })
+    }
+}
+
+impl Object for Plane {
+    fn get_intersection(&self, ray: Ray) -> Option<f32> {
+        let ray = ray.transform_using(self.world_to_object);
+        let normal = (0.0, 1.0, 0.0).into();
+        let position = ray.position.to_homogeneous().truncate();
+        let direction = ray.direction;
+        if InnerSpace::dot(direction, normal) == 0.0 {
+            None
+        } else {
+            let t = InnerSpace::dot(-position, normal) / InnerSpace::dot(direction, normal);
+            if t > 0.0 {
+                Some(t)
+            } else {
+                None
+            }
+        }
+    }
+
+    fn get_color(&self, world: &World, ray: Ray, t: f32) -> Color {
+        let normal = (0.0, 1.0, 0.0).into();
+        let light_color = world
+            .lights
+            .iter()
+            .map(|light| {
+                // TODO: Move some of this work to World.
+                let intersection_point: Point3<f32> = ray.get_point_on_ray(t).into();
+                let light_ray = Ray::new(light.position, intersection_point - light.position);
+                if let Some((_, t)) = world.get_closest_intersection(light_ray) {
+                    if intersection_point.distance(light_ray.get_point_on_ray(t).into()) > 0.1 {
+                        return Color::rgba(0.0, 0.0, 0.0, 0.0);
+                    }
+                }
+                let falloff =
+                    5.0 / (0.001 + InnerSpace::magnitude2(intersection_point - light.position));
+                let intensity = clamp(
+                    falloff * InnerSpace::dot(-light_ray.direction, normal),
                     0.0,
                     1.0,
                 );

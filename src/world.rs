@@ -52,11 +52,8 @@ impl World {
         Ok(())
     }
 
-    fn trace_ray(&self, ray: Ray) -> Color {
-        // Transform ray into world space.
-        let ray = ray.transform_using(self.camera.camera_to_world);
-        let closest_object = self
-            .objects
+    pub fn get_closest_intersection(&self, ray: Ray) -> Option<(&Box<dyn Object>, f32)> {
+        self.objects
             .iter()
             .filter_map(|object| match object.get_intersection(ray) {
                 Some(t) => Some((object, t)),
@@ -67,8 +64,13 @@ impl World {
                 t_left
                     .partial_cmp(t_right)
                     .unwrap_or(std::cmp::Ordering::Equal)
-            });
-        if let Some((object, t)) = closest_object {
+            })
+    }
+
+    fn trace_ray(&self, ray: Ray) -> Color {
+        // Transform ray into world space.
+        let ray = ray.transform_using(self.camera.camera_to_world);
+        if let Some((object, t)) = self.get_closest_intersection(ray) {
             // Compute the color of the object that the ray first hits.
             object.get_color(self, ray, t)
         } else {
