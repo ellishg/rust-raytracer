@@ -16,10 +16,10 @@ impl Ray {
     }
 
     pub fn transform_using(&self, transform: Matrix4<f32>) -> Ray {
-        Ray {
-            position: transform.transform_point(self.position),
-            direction: transform.transform_vector(self.direction),
-        }
+        Ray::new(
+            transform.transform_point(self.position),
+            transform.transform_vector(self.direction),
+        )
     }
 
     pub fn get_point_on_ray(&self, t: f32) -> (f32, f32, f32) {

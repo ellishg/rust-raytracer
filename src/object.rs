@@ -20,7 +20,6 @@ pub struct Sphere {
 }
 
 impl Sphere {
-    // FIXME: I don't think radius works correctly.
     pub fn new(position: Point3<f32>, radius: f32, color: Color) -> Box<dyn Object> {
         let scale = Matrix4::from_scale(radius);
         let translate = Matrix4::from_translation(position.to_homogeneous().truncate());
