@@ -3,15 +3,17 @@
 
 ## TODO
 - [ ] Come up with a better name
-- [ ] Add tests
-- [ ] Move structs into their own files
+- [ ] Add more tests
+- [x] Move structs into their own files
 - Lights
   - [ ] Ambient
   - [x] Point
   - [ ] Cone
   - [ ] Directional
+  - [ ] Soft shadows
 - Objects
   - [x] Sphere
+  - [x] Plane
   - [ ] Triangle
   - [ ] Triangle Meshes
 - Materials
@@ -20,3 +22,4 @@
   - [ ] Reflective
   - [ ] Transparent
   - [ ] Texture
+- [ ] Focus blur
