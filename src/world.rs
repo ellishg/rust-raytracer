@@ -1,3 +1,5 @@
+use cgmath::Point3;
+use cgmath::{InnerSpace, MetricSpace};
 use image;
 use std::error::Error;
 use std::fs::File;
@@ -72,7 +74,34 @@ impl World {
         let ray = ray.transform_using(self.camera.camera_to_world);
         if let Some((object, t)) = self.get_closest_intersection(ray) {
             // Compute the color of the object that the ray first hits.
-            object.get_color(self, ray, t)
+            let intersection_point: Point3<f32> = ray.get_point_on_ray(t).into();
+            let total_light_color = self
+                .lights
+                .iter()
+                .filter(|light| {
+                    let light_ray = light.get_light_ray(intersection_point);
+                    if let Some((_, t)) = self.get_closest_intersection(light_ray) {
+                        // TODO: Figure out a better way to detect shadows.
+                        let epsilon_squared = 0.1;
+                        if intersection_point.distance2(light_ray.get_point_on_ray(t).into())
+                            > epsilon_squared
+                        {
+                            return false;
+                        }
+                    }
+                    true
+                })
+                .map(|light| {
+                    let light_ray = light.get_light_ray(intersection_point);
+                    // TODO: Give falloff code to Light.
+                    let falloff =
+                        5.0 / (0.001 + InnerSpace::magnitude2(intersection_point - light.position));
+                    let intensity =
+                        object.get_light_intensity(intersection_point, light_ray.direction);
+                    falloff * intensity * light.color
+                })
+                .fold(Color::rgba(0.0, 0.0, 0.0, 0.0), |acc, x| acc + x);
+            object.get_color(total_light_color, ray, t)
         } else {
             // If the ray hits nothing, return the background color.
             self.background_color
