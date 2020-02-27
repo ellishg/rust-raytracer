@@ -1,4 +1,5 @@
 # rust-raytracer
+[![Build Status](https://travis-ci.com/sparkasaurusRex/rust-raytracer.svg?token=g46Mfub8GMWqdPYXVqEs&branch=master)](https://travis-ci.com/sparkasaurusRex/rust-raytracer)
 
 ## TODO
 - [ ] Come up with a better name
