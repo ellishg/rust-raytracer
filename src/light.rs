@@ -1,5 +1,5 @@
-use cgmath::Point3;
 use super::color::Color;
+use cgmath::Point3;
 
 // TODO: Use enum or trait to define light types.
 pub struct Light {

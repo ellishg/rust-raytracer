@@ -6,11 +6,11 @@ mod ray;
 mod utils;
 mod world;
 
-use color::Color;
-use world::World;
 use camera::Camera;
-use object::Sphere;
+use color::Color;
 use light::Light;
+use object::Sphere;
+use world::World;
 
 fn main() {
     let camera = Camera::new(

@@ -3,9 +3,9 @@ use std::error::Error;
 use std::fs::File;
 
 use super::camera::Camera;
-use super::object::Object;
-use super::light::Light;
 use super::color::Color;
+use super::light::Light;
+use super::object::Object;
 use super::ray::Ray;
 
 pub struct World {

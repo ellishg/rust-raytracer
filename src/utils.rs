@@ -1,4 +1,3 @@
-
 /// Clamps a value x to be in the range (low, high)
 // `f32.clamp` is nightly-only :(
 pub fn clamp(x: f32, low: f32, high: f32) -> f32 {

@@ -1,4 +1,3 @@
-
 use super::utils::clamp;
 
 #[derive(Debug, Copy, Clone)]

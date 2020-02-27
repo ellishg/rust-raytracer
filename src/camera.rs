@@ -1,6 +1,6 @@
-use cgmath::{Transform};
-use cgmath::{Matrix4, Point3, Vector3};
 use super::ray::Ray;
+use cgmath::Transform;
+use cgmath::{Matrix4, Point3, Vector3};
 
 pub struct Camera {
     pub camera_to_world: Matrix4<f32>,
@@ -9,7 +9,13 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(width: u32, height: u32, eye: Point3<f32>, at: Point3<f32>, up: Vector3<f32>) -> Camera {
+    pub fn new(
+        width: u32,
+        height: u32,
+        eye: Point3<f32>,
+        at: Point3<f32>,
+        up: Vector3<f32>,
+    ) -> Camera {
         let world_to_camera = Matrix4::look_at(eye, at, up);
         let camera_to_world = Transform::inverse_transform(&world_to_camera).unwrap();
         Camera {
