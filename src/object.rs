@@ -99,7 +99,7 @@ impl Plane {
         let new_z_axis = new_x_axis.cross(new_y_axis).normalize();
         let rotate: Matrix4<f32> = Matrix3::from_cols(new_x_axis, new_y_axis, new_z_axis).into();
         let translate = Matrix4::from_translation(position.to_homogeneous().truncate());
-        let object_to_world = rotate * translate;
+        let object_to_world = translate * rotate;
         let world_to_object = Transform::inverse_transform(&object_to_world).unwrap();
         Box::new(Plane {
             world_to_object,
