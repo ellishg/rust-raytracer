@@ -118,7 +118,7 @@ impl Object for Plane {
         let normal = self.get_normal();
         let position = ray.position.to_homogeneous().truncate();
         let direction = ray.direction;
-        if InnerSpace::dot(direction, normal) == 0.0 {
+        if InnerSpace::dot(direction, normal) >= 0.0 {
             None
         } else {
             let t = InnerSpace::dot(-position, normal) / InnerSpace::dot(direction, normal);
@@ -149,9 +149,71 @@ impl Object for Plane {
     }
 }
 
+pub struct Triangle {
+    a: Point3<f32>,
+    b: Point3<f32>,
+    c: Point3<f32>,
+    color: Color,
+}
+
+impl Triangle {
+    pub fn new(a: Point3<f32>, b: Point3<f32>, c: Point3<f32>, color: Color) -> Box<dyn Object> {
+        Box::new(Triangle { a, b, c, color })
+    }
+
+    fn get_normal(&self) -> Vector3<f32> {
+        (self.b - self.a).cross(self.c - self.a).normalize()
+    }
+}
+
+impl Object for Triangle {
+    fn get_intersection(&self, ray: Ray) -> Option<f32> {
+        let normal = self.get_normal();
+        let point_on_plane = self.a.to_homogeneous().truncate();
+        let position = ray.position.to_homogeneous().truncate();
+        let direction = ray.direction;
+        if InnerSpace::dot(direction, normal) >= 0.0 {
+            None
+        } else {
+            let t = InnerSpace::dot(point_on_plane - position, normal)
+                / InnerSpace::dot(direction, normal);
+            if t > 0.0 {
+                let intersection_point: Point3<f32> = ray.get_point_on_ray(t).into();
+                if InnerSpace::dot((self.b - self.a).cross(intersection_point - self.a), normal)
+                    >= 0.0
+                    && InnerSpace::dot((self.c - self.b).cross(intersection_point - self.b), normal)
+                        >= 0.0
+                    && InnerSpace::dot((self.a - self.c).cross(intersection_point - self.c), normal)
+                        >= 0.0
+                {
+                    Some(t)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+    }
+
+    fn get_light_intensity(&self, _point: Point3<f32>, light_vector: Vector3<f32>) -> f32 {
+        let normal = self.get_normal();
+        // TODO: This is material code.
+        clamp(InnerSpace::dot(-light_vector, normal), 0.0, 1.0)
+    }
+
+    fn get_color(&self, light_color: Color, _ray: Ray, _t: f32) -> Color {
+        self.color * light_color
+    }
+
+    fn get_normal(&self, _point: Point3<f32>) -> Vector3<f32> {
+        self.get_normal()
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{Object, Plane, Sphere};
+    use super::{Object, Plane, Sphere, Triangle};
     use crate::color::Color;
     use crate::ray::Ray;
 
@@ -174,6 +236,32 @@ mod tests {
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (0.0, 0.0, 1.0).into());
         assert!(plane.get_intersection(ray).is_none());
         let ray = Ray::new((0.0, -1.0, 0.0).into(), (0.0, 1.0, 0.0).into());
-        assert!(plane.get_intersection(ray).is_some());
+        assert!(plane.get_intersection(ray).is_none());
+    }
+
+    #[test]
+    fn test_triangle() {
+        let c = Color::rgb(1.0, 0.0, 0.0);
+        let triangle = Triangle::new(
+            (0.0, 0.0, 0.0).into(),
+            (1.0, 0.0, 0.0).into(),
+            (0.0, 1.0, 0.0).into(),
+            c,
+        );
+        let ray = Ray::new((0.1, 0.1, 1.0).into(), (0.0, 0.0, -1.0).into());
+        assert!(triangle.get_intersection(ray).is_some());
+        let ray = Ray::new((1.0, 1.0, -1.0).into(), (0.0, 0.0, 1.0).into());
+        assert!(triangle.get_intersection(ray).is_none());
+
+        let triangle = Triangle::new(
+            (0.0, 0.0, 0.0).into(),
+            (0.0, 1.0, 0.0).into(),
+            (1.0, 0.0, 0.0).into(),
+            c,
+        );
+        let ray = Ray::new((0.1, 0.1, 1.0).into(), (0.0, 0.0, -1.0).into());
+        assert!(triangle.get_intersection(ray).is_none());
+        let ray = Ray::new((1.0, 1.0, -1.0).into(), (0.0, 0.0, 1.0).into());
+        assert!(triangle.get_intersection(ray).is_none());
     }
 }
