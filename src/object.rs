@@ -245,11 +245,13 @@ mod tests {
         let ray = Ray::new((1.0, 1.0, -1.0).into(), (0.0, 0.0, 1.0).into());
         assert!(triangle.get_intersection(ray).is_none());
 
+        let c = (1.0, 0.0, 0.0).into();
+        let m = Phong::new(c, 1.0, 1.0, 1.0);
         let triangle = Triangle::new(
             (0.0, 0.0, 0.0).into(),
             (0.0, 1.0, 0.0).into(),
             (1.0, 0.0, 0.0).into(),
-            c,
+            m,
         );
         let ray = Ray::new((0.1, 0.1, 1.0).into(), (0.0, 0.0, -1.0).into());
         assert!(triangle.get_intersection(ray).is_none());
