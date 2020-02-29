@@ -55,6 +55,7 @@ impl<T: Object> Material<T> for Phong {
         lights
             .iter()
             .map(|light| {
+                // TODO: Either add ambient component here, or create a new light type.
                 let light_ray = light.get_light_ray(intersection_point);
                 // TODO: Give falloff code to Light.
                 let falloff =
