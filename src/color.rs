@@ -28,6 +28,31 @@ impl Color {
             (self.b * 255.0) as u8,
         )
     }
+
+    pub fn white() -> Color {
+        Color::rgb(1., 1., 1.)
+    }
+
+    pub fn black() -> Color {
+        Color::rgb(0., 0., 0.)
+    }
+
+    pub fn red() -> Color {
+        Color::rgb(1., 0., 0.)
+    }
+
+    pub fn green() -> Color {
+        Color::rgb(0., 1., 0.)
+    }
+
+    pub fn blue() -> Color {
+        Color::rgb(0., 0., 1.)
+    }
+
+    /// e.g. `color(value, value, value)`
+    pub fn grayscale(value: f32) -> Color {
+        Color::rgb(value, value, value)
+    }
 }
 
 impl std::ops::Add for Color {
@@ -60,6 +85,14 @@ impl std::ops::Mul<f32> for Color {
     fn mul(self, rhs: f32) -> Self {
         // TODO: How should we multiply colors?
         Color::rgba(self.r * rhs, self.g * rhs, self.b * rhs, self.a * rhs)
+    }
+}
+
+impl std::ops::Div<f32> for Color {
+    type Output = Self;
+    fn div(self, rhs: f32) -> Self {
+        assert!(rhs != 0.);
+        Color::rgba(self.r / rhs, self.g / rhs, self.b / rhs, self.a / rhs)
     }
 }
 

@@ -76,5 +76,5 @@ fn main() {
     let light = Light::new((-4.0, 2.0, 2.0).into(), (1.0, 1.0, 1.0).into());
     world.add_light(light);
 
-    world.render("out.png").unwrap();
+    world.render("out.png", 4).unwrap();
 }

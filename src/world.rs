@@ -1,5 +1,5 @@
+use cgmath::{Point3};
 use cgmath::MetricSpace;
-use cgmath::Point3;
 use image;
 use std::error::Error;
 
@@ -34,20 +34,27 @@ impl World {
         self.lights.push(light);
     }
 
-    // TODO: Add options to control up sampling and down sampling
-    pub fn render<P>(&self, path: P) -> Result<(), Box<dyn Error>>
+    /// Render the world scene to a png file with the given filename.
+    /// The screen is treated as a width 1 square centered at the camera eye.
+    /// TODO: Add options to control up sampling and down sampling
+    pub fn render<P>(&self, path: P, samples_per_pixel: u32) -> Result<(), Box<dyn Error>>
     where
         P: AsRef<std::path::Path>,
     {
-        // TODO: This data structure needs to change if we want to upsample.
         let pixels: Vec<Vec<Color>> = (0..self.camera.width)
             .into_iter()
             .map(|x| {
                 (0..self.camera.height)
                     .into_iter()
                     .map(|y| {
-                        let ray = self.camera.generate_ray(x, y);
-                        self.trace_ray(ray)
+                        let rgb_sum = (0..samples_per_pixel)
+                        .into_iter()
+                        .map(|_| {
+                            let ray = self.camera.generate_ray(x, y);
+                            self.trace_ray(ray)
+                        })
+                        .fold(Color::rgb(0., 0., 0.), |acc, x| acc + x);
+                        rgb_sum / (samples_per_pixel as f32)
                     })
                     .collect()
             })

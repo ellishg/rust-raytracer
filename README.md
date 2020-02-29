@@ -23,4 +23,6 @@
   - [ ] Transparent
   - [x] Texture
     - [ ] Super sample texture
-- [ ] Focus blur
+- Tracing
+  - [x] Anti-aliasing
+  - [ ] Focus blur
