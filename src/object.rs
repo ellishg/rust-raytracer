@@ -2,33 +2,36 @@ use cgmath::{InnerSpace, Transform};
 use cgmath::{Matrix3, Matrix4, Point3, Vector3};
 
 use super::color::Color;
+use super::light::Light;
+use super::material::Material;
 use super::ray::Ray;
-use super::utils::clamp;
-
-// TODO: Make Material enum or trait.
+use super::world::World;
 
 // NOTE: Another option would be to make Object hold an enum of all possible types.
 pub trait Object {
     fn get_intersection(&self, ray: Ray) -> Option<f32>;
-    fn get_light_intensity(&self, point: Point3<f32>, light_vector: Vector3<f32>) -> f32;
-    fn get_color(&self, light_color: Color, ray: Ray, t: f32) -> Color;
     fn get_normal(&self, point: Point3<f32>) -> Vector3<f32>;
+    fn get_color(&self, incoming_ray: Ray, t: f32, lights: Vec<&Light>, world: &World) -> Color;
 }
 
 pub struct Sphere {
     world_to_object: Matrix4<f32>,
-    color: Color,
+    material: Box<dyn Material<Sphere>>,
 }
 
 impl Sphere {
-    pub fn new(position: Point3<f32>, radius: f32, color: Color) -> Box<dyn Object> {
+    pub fn new(
+        position: Point3<f32>,
+        radius: f32,
+        material: Box<dyn Material<Sphere>>,
+    ) -> Box<dyn Object> {
         let scale = Matrix4::from_scale(radius);
         let translate = Matrix4::from_translation(position.to_homogeneous().truncate());
         let object_to_world = translate * scale;
         let world_to_object = Transform::inverse_transform(&object_to_world).unwrap();
         Box::new(Sphere {
             world_to_object,
-            color,
+            material,
         })
     }
 }
@@ -56,33 +59,28 @@ impl Object for Sphere {
         }
     }
 
-    fn get_light_intensity(&self, point: Point3<f32>, light_vector: Vector3<f32>) -> f32 {
-        let normal = self.get_normal(point);
-        let light_vector = self
-            .world_to_object
-            .transform_vector(light_vector)
-            .normalize();
-        // TODO: This is material code.
-        clamp(InnerSpace::dot(-light_vector, normal), 0.0, 1.0)
-    }
-
-    fn get_color(&self, light_color: Color, _ray: Ray, _t: f32) -> Color {
-        self.color * light_color
-    }
-
     fn get_normal(&self, point: Point3<f32>) -> Vector3<f32> {
         let point = self.world_to_object.transform_point(point);
         point.to_homogeneous().truncate().normalize()
+    }
+
+    fn get_color(&self, incoming_ray: Ray, t: f32, lights: Vec<&Light>, world: &World) -> Color {
+        self.material
+            .get_color(incoming_ray, t, &self, lights, world)
     }
 }
 
 pub struct Plane {
     world_to_object: Matrix4<f32>,
-    color: Color,
+    material: Box<dyn Material<Plane>>,
 }
 
 impl Plane {
-    pub fn new(position: Point3<f32>, normal: Vector3<f32>, color: Color) -> Box<Plane> {
+    pub fn new(
+        position: Point3<f32>,
+        normal: Vector3<f32>,
+        material: Box<dyn Material<Plane>>,
+    ) -> Box<Plane> {
         let normal = normal.normalize();
         // Pick an arbitrary orthogonal vector.
         let new_x_axis = {
@@ -103,7 +101,7 @@ impl Plane {
         let world_to_object = Transform::inverse_transform(&object_to_world).unwrap();
         Box::new(Plane {
             world_to_object,
-            color,
+            material,
         })
     }
 
@@ -130,22 +128,13 @@ impl Object for Plane {
         }
     }
 
-    fn get_light_intensity(&self, _point: Point3<f32>, light_vector: Vector3<f32>) -> f32 {
-        let light_vector = self
-            .world_to_object
-            .transform_vector(light_vector)
-            .normalize();
-        let normal = self.get_normal();
-        // TODO: This is material code.
-        clamp(InnerSpace::dot(-light_vector, normal), 0.0, 1.0)
-    }
-
-    fn get_color(&self, light_color: Color, _ray: Ray, _t: f32) -> Color {
-        self.color * light_color
-    }
-
     fn get_normal(&self, _point: Point3<f32>) -> Vector3<f32> {
         self.get_normal()
+    }
+
+    fn get_color(&self, incoming_ray: Ray, t: f32, lights: Vec<&Light>, world: &World) -> Color {
+        self.material
+            .get_color(incoming_ray, t, &self, lights, world)
     }
 }
 
@@ -153,12 +142,17 @@ pub struct Triangle {
     a: Point3<f32>,
     b: Point3<f32>,
     c: Point3<f32>,
-    color: Color,
+    material: Box<dyn Material<Triangle>>,
 }
 
 impl Triangle {
-    pub fn new(a: Point3<f32>, b: Point3<f32>, c: Point3<f32>, color: Color) -> Box<dyn Object> {
-        Box::new(Triangle { a, b, c, color })
+    pub fn new(
+        a: Point3<f32>,
+        b: Point3<f32>,
+        c: Point3<f32>,
+        material: Box<dyn Material<Triangle>>,
+    ) -> Box<dyn Object> {
+        Box::new(Triangle { a, b, c, material })
     }
 
     fn get_normal(&self) -> Vector3<f32> {
@@ -196,31 +190,27 @@ impl Object for Triangle {
         }
     }
 
-    fn get_light_intensity(&self, _point: Point3<f32>, light_vector: Vector3<f32>) -> f32 {
-        let normal = self.get_normal();
-        // TODO: This is material code.
-        clamp(InnerSpace::dot(-light_vector, normal), 0.0, 1.0)
-    }
-
-    fn get_color(&self, light_color: Color, _ray: Ray, _t: f32) -> Color {
-        self.color * light_color
-    }
-
     fn get_normal(&self, _point: Point3<f32>) -> Vector3<f32> {
         self.get_normal()
+    }
+
+    fn get_color(&self, incoming_ray: Ray, t: f32, lights: Vec<&Light>, world: &World) -> Color {
+        self.material
+            .get_color(incoming_ray, t, &self, lights, world)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{Object, Plane, Sphere, Triangle};
-    use crate::color::Color;
+    use crate::material::Phong;
     use crate::ray::Ray;
 
     #[test]
     fn test_sphere() {
-        let c = Color::rgb(1.0, 0.0, 0.0);
-        let sphere = Sphere::new((1.0, 2.0, 3.0).into(), 0.25, c);
+        let c = (1.0, 0.0, 0.0).into();
+        let m = Phong::new(c, 1.0, 1.0, 1.0);
+        let sphere = Sphere::new((1.0, 2.0, 3.0).into(), 0.25, m);
         let ray = Ray::new((0.0, 0.0, 0.0).into(), (-1.0, 0.0, 0.0).into());
         assert!(sphere.get_intersection(ray).is_none());
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (1.0, 1.0, 3.0).into());
@@ -229,8 +219,9 @@ mod tests {
 
     #[test]
     fn test_plane() {
-        let c = Color::rgb(1.0, 0.0, 0.0);
-        let plane = Plane::new((0.0, 0.0, 0.0).into(), (0.0, 1.0, 0.0).into(), c);
+        let c = (1.0, 0.0, 0.0).into();
+        let m = Phong::new(c, 1.0, 1.0, 1.0);
+        let plane = Plane::new((0.0, 0.0, 0.0).into(), (0.0, 1.0, 0.0).into(), m);
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (0.0, 1.0, 0.0).into());
         assert!(plane.get_intersection(ray).is_none());
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (0.0, 0.0, 1.0).into());
@@ -241,23 +232,26 @@ mod tests {
 
     #[test]
     fn test_triangle() {
-        let c = Color::rgb(1.0, 0.0, 0.0);
+        let c = (1.0, 0.0, 0.0).into();
+        let m = Phong::new(c, 1.0, 1.0, 1.0);
         let triangle = Triangle::new(
             (0.0, 0.0, 0.0).into(),
             (1.0, 0.0, 0.0).into(),
             (0.0, 1.0, 0.0).into(),
-            c,
+            m,
         );
         let ray = Ray::new((0.1, 0.1, 1.0).into(), (0.0, 0.0, -1.0).into());
         assert!(triangle.get_intersection(ray).is_some());
         let ray = Ray::new((1.0, 1.0, -1.0).into(), (0.0, 0.0, 1.0).into());
         assert!(triangle.get_intersection(ray).is_none());
 
+        let c = (1.0, 0.0, 0.0).into();
+        let m = Phong::new(c, 1.0, 1.0, 1.0);
         let triangle = Triangle::new(
             (0.0, 0.0, 0.0).into(),
             (0.0, 1.0, 0.0).into(),
             (1.0, 0.0, 0.0).into(),
-            c,
+            m,
         );
         let ray = Ray::new((0.1, 0.1, 1.0).into(), (0.0, 0.0, -1.0).into());
         assert!(triangle.get_intersection(ray).is_none());
