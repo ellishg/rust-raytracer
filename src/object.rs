@@ -118,7 +118,7 @@ impl Object for Plane {
         let normal = self.get_normal();
         let position = ray.position.to_homogeneous().truncate();
         let direction = ray.direction;
-        if InnerSpace::dot(direction, normal) == 0.0 {
+        if InnerSpace::dot(direction, normal) >= 0.0 {
             None
         } else {
             let t = InnerSpace::dot(-position, normal) / InnerSpace::dot(direction, normal);
@@ -172,7 +172,7 @@ impl Object for Triangle {
         let point_on_plane = self.a.to_homogeneous().truncate();
         let position = ray.position.to_homogeneous().truncate();
         let direction = ray.direction;
-        if InnerSpace::dot(direction, normal) == 0.0 {
+        if InnerSpace::dot(direction, normal) >= 0.0 {
             None
         } else {
             let t = InnerSpace::dot(point_on_plane - position, normal)
@@ -180,11 +180,11 @@ impl Object for Triangle {
             if t > 0.0 {
                 let intersection_point: Point3<f32> = ray.get_point_on_ray(t).into();
                 if InnerSpace::dot((self.b - self.a).cross(intersection_point - self.a), normal)
-                    > 0.0
+                    >= 0.0
                     && InnerSpace::dot((self.c - self.b).cross(intersection_point - self.b), normal)
-                        > 0.0
+                        >= 0.0
                     && InnerSpace::dot((self.a - self.c).cross(intersection_point - self.c), normal)
-                        > 0.0
+                        >= 0.0
                 {
                     Some(t)
                 } else {
@@ -236,7 +236,7 @@ mod tests {
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (0.0, 0.0, 1.0).into());
         assert!(plane.get_intersection(ray).is_none());
         let ray = Ray::new((0.0, -1.0, 0.0).into(), (0.0, 1.0, 0.0).into());
-        assert!(plane.get_intersection(ray).is_some());
+        assert!(plane.get_intersection(ray).is_none());
     }
 
     #[test]
@@ -248,8 +248,19 @@ mod tests {
             (0.0, 1.0, 0.0).into(),
             c,
         );
-        let ray = Ray::new((0.1, 0.1, -1.0).into(), (0.0, 0.0, 1.0).into());
+        let ray = Ray::new((0.1, 0.1, 1.0).into(), (0.0, 0.0, -1.0).into());
         assert!(triangle.get_intersection(ray).is_some());
+        let ray = Ray::new((1.0, 1.0, -1.0).into(), (0.0, 0.0, 1.0).into());
+        assert!(triangle.get_intersection(ray).is_none());
+
+        let triangle = Triangle::new(
+            (0.0, 0.0, 0.0).into(),
+            (0.0, 1.0, 0.0).into(),
+            (1.0, 0.0, 0.0).into(),
+            c,
+        );
+        let ray = Ray::new((0.1, 0.1, 1.0).into(), (0.0, 0.0, -1.0).into());
+        assert!(triangle.get_intersection(ray).is_none());
         let ray = Ray::new((1.0, 1.0, -1.0).into(), (0.0, 0.0, 1.0).into());
         assert!(triangle.get_intersection(ray).is_none());
     }
