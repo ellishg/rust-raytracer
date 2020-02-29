@@ -1,5 +1,5 @@
+use cgmath::MetricSpace;
 use cgmath::Point3;
-use cgmath::{InnerSpace, MetricSpace};
 use image;
 use std::error::Error;
 use std::fs::File;
@@ -75,7 +75,7 @@ impl World {
         if let Some((object, t)) = self.get_closest_intersection(ray) {
             // Compute the color of the object that the ray first hits.
             let intersection_point: Point3<f32> = ray.get_point_on_ray(t).into();
-            let total_light_color = self
+            let illuminating_lights = self
                 .lights
                 .iter()
                 .filter(|light| {
@@ -91,17 +91,8 @@ impl World {
                     }
                     true
                 })
-                .map(|light| {
-                    let light_ray = light.get_light_ray(intersection_point);
-                    // TODO: Give falloff code to Light.
-                    let falloff =
-                        5.0 / (0.001 + InnerSpace::magnitude2(intersection_point - light.position));
-                    let intensity =
-                        object.get_light_intensity(intersection_point, light_ray.direction);
-                    falloff * intensity * light.color
-                })
-                .fold(Color::rgba(0.0, 0.0, 0.0, 0.0), |acc, x| acc + x);
-            object.get_color(total_light_color, ray, t)
+                .collect();
+            object.get_color(ray, t, illuminating_lights, self)
         } else {
             // If the ray hits nothing, return the background color.
             self.background_color

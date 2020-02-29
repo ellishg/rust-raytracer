@@ -14,11 +14,11 @@
 - Objects
   - [x] Sphere
   - [x] Plane
-  - [ ] Triangle
+  - [x] Triangle
   - [ ] Triangle Meshes
 - Materials
-  - [ ] Flat
-  - [ ] Phong
+  - [x] Flat
+  - [x] Phong
   - [ ] Reflective
   - [ ] Transparent
   - [ ] Texture
