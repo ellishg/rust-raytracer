@@ -2,7 +2,6 @@ use cgmath::MetricSpace;
 use cgmath::Point3;
 use image;
 use std::error::Error;
-use std::fs::File;
 
 use super::camera::Camera;
 use super::color::Color;
@@ -36,21 +35,29 @@ impl World {
     }
 
     // TODO: Add options to control up sampling and down sampling
-    pub fn render(&self, filename: &str) -> Result<(), Box<dyn Error>> {
-        let file = File::create(filename)?;
-        let png_encoder = image::png::PNGEncoder::new(file);
-        let width = self.camera.width;
-        let height = self.camera.height;
-        let data: Vec<u8> = (0..width * height)
+    pub fn render<P>(&self, path: P) -> Result<(), Box<dyn Error>>
+    where
+        P: AsRef<std::path::Path>,
+    {
+        // TODO: This data structure needs to change if we want to upsample.
+        let pixels: Vec<Vec<Color>> = (0..self.camera.width)
             .into_iter()
-            .flat_map(|i| {
-                let ray = self.camera.generate_ray(i % width, i / width);
-                let color = self.trace_ray(ray);
-                let (r, g, b) = color.get_rgb();
-                vec![r, g, b]
+            .map(|x| {
+                (0..self.camera.height)
+                    .into_iter()
+                    .map(|y| {
+                        let ray = self.camera.generate_ray(x, y);
+                        self.trace_ray(ray)
+                    })
+                    .collect()
             })
             .collect();
-        png_encoder.encode(data.as_slice(), width, height, image::ColorType::Rgb8)?;
+        let image = image::ImageBuffer::from_fn(self.camera.width, self.camera.height, |x, y| {
+            let (r, g, b) = pixels[x as usize][y as usize].get_rgb();
+            let pixel: image::Rgb<_> = [r, g, b].into();
+            pixel
+        });
+        image.save(path)?;
         Ok(())
     }
 
