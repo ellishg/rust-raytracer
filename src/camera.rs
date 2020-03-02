@@ -3,7 +3,7 @@ use cgmath::Transform;
 use cgmath::{Matrix4, Point3, Vector3};
 
 pub struct Camera {
-    pub camera_to_world: Matrix4<f32>,
+    camera_to_world: Matrix4<f32>,
     pub width: u32,
     pub height: u32,
 }
@@ -33,6 +33,8 @@ impl Camera {
         let dist = -1.0; // TODO: Something something focal length?
         let position = (x, y, dist).into();
         let direction = (x, y, dist).into();
-        Ray::new(position, direction)
+        let ray = Ray::new(position, direction);
+        // Transform ray into world space.
+        ray.transform_using(self.camera_to_world)
     }
 }

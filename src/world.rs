@@ -70,8 +70,6 @@ impl World {
     }
 
     fn trace_ray(&self, ray: Ray) -> Color {
-        // Transform ray into world space.
-        let ray = ray.transform_using(self.camera.camera_to_world);
         if let Some((object, t)) = self.get_closest_intersection(ray) {
             // Compute the color of the object that the ray first hits.
             let intersection_point: Point3<f32> = ray.get_point_on_ray(t).into();
@@ -82,6 +80,7 @@ impl World {
                     let light_ray = light.get_light_ray(intersection_point);
                     if let Some((_, t)) = self.get_closest_intersection(light_ray) {
                         // TODO: Figure out a better way to detect shadows.
+                        // TODO: This should be in light struct.
                         let epsilon_squared = 0.1;
                         if intersection_point.distance2(light_ray.get_point_on_ray(t).into())
                             > epsilon_squared
