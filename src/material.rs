@@ -1,4 +1,6 @@
 use cgmath::InnerSpace;
+use image;
+use std::error::Error;
 
 use super::color::Color;
 use super::light::Light;
@@ -75,5 +77,57 @@ impl<T: Object> Material<T> for Phong {
                     * light_color
             })
             .fold((0.0, 0.0, 0.0, 0.0).into(), |acc, x| acc + x)
+    }
+}
+
+struct Texture {
+    buf: image::RgbImage,
+}
+
+impl Texture {
+    pub fn new<P>(path: P) -> Result<Self, Box<dyn Error>>
+    where
+        P: AsRef<std::path::Path>,
+    {
+        let image = image::io::Reader::open(path)?.decode()?;
+        let buf = image.to_rgb();
+        Ok(Texture { buf })
+    }
+
+    pub fn sample(&self, u: f32, v: f32) -> Color {
+        let width = self.buf.width() as f32;
+        let height = self.buf.height() as f32;
+        let (u, v) = (clamp(u, 0.0, 1.0), clamp(v, 0.0, 1.0));
+        let x = (u * width).trunc() as u32;
+        let y = (v * height).trunc() as u32;
+        let pixel = self.buf.get_pixel(x, y);
+        let (r, g, b) = (pixel[0], pixel[1], pixel[2]);
+        let r = (r as f32) / 255.0;
+        let g = (g as f32) / 255.0;
+        let b = (b as f32) / 255.0;
+        Color::rgb(r, g, b)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::material::Texture;
+
+    #[test]
+    fn test_sample_texture() {
+        let texture = Texture::new("media/texture.png").unwrap();
+        assert_eq!(texture.sample(0.0, 0.0).get_rgb(), (64, 64, 64));
+        assert_eq!(
+            texture.sample(16.0 / 255.0, 15.0 / 255.0).get_rgb(),
+            (229, 22, 177)
+        );
+        assert_eq!(
+            texture.sample(16.0 / 255.0, 15.0 / 255.0).get_rgb(),
+            (229, 22, 177)
+        );
+        assert_eq!(
+            texture.sample(46.0 / 255.0, 79.0 / 255.0).get_rgb(),
+            (22, 229, 229)
+        );
     }
 }
