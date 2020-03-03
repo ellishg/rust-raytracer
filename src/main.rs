@@ -9,9 +9,8 @@ mod world;
 
 use camera::Camera;
 use light::Light;
-use material::{Phong, Texture};
+use material::{Material, MaterialType, TextureType};
 use object::{Plane, Sphere, Triangle};
-use std::rc::Rc;
 use world::World;
 
 fn main() {
@@ -22,56 +21,53 @@ fn main() {
         (0.0, 0.0, 0.0).into(),
         (0.0, 1.0, 0.0).into(),
     );
+
     let mut world = World::new(camera, (0.2, 0.2, 0.2).into());
-    let texture = Rc::new(Texture::new("media/texture.png").unwrap());
+
+    let texture = TextureType::new_texture("media/texture.png").unwrap();
+
+    // Create a textured plane.
+    let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
     let object = Plane::new(
         (0.0, -1.0, 0.0).into(),
         (0.0, 1.0, 0.0).into(),
-        Phong::new(
-            (0.0, 0.0, 1.0).into(),
-            Some(Rc::clone(&texture)),
-            1.0,
-            0.0,
-            1.0,
-        ),
+        Material::new(phong, texture.clone()),
     );
     world.add_object(object);
-    let object = Sphere::new(
-        (0.0, 0.0, 0.0).into(),
-        1.0,
-        Phong::new((1.0, 0.0, 0.0).into(), None, 0.8, 0.2, 2.0),
-    );
+
+    // Create a red sphere.
+    let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
+    let color = TextureType::new_flat((1.0, 0.0, 0.0).into());
+    let object = Sphere::new((0.0, 0.0, 0.0).into(), 1.0, Material::new(phong, color));
     world.add_object(object);
+
+    // Create a textured sphere.
+    let phong = MaterialType::new_phong(0.4, 0.6, 1.8);
     let object = Sphere::new(
         (1.0, 0.0, -1.0).into(),
         1.0,
-        Phong::new(
-            (0.0, 1.0, 0.0).into(),
-            Some(Rc::clone(&texture)),
-            0.4,
-            0.6,
-            1.8,
-        ),
+        Material::new(phong, texture.clone()),
     );
     world.add_object(object);
+
+    // Create a yellow triangle.
+    let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
+    let color = TextureType::new_flat((1.0, 1.0, 0.0).into());
     let object = Triangle::new(
         (-2.0, 0.0, 1.0).into(),
         (-1.0, 0.0, 1.0).into(),
         (-2.0, 2.0, 1.0).into(),
-        Phong::new((1.0, 1.0, 0.0).into(), None, 1.0, 0.0, 1.0),
+        Material::new(phong, color),
     );
     world.add_object(object);
+
+    // Create a textured triangle.
+    let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
     let object = Triangle::new(
         (-0.5, 1.0, 1.0).into(),
         (0.5, 1.0, 1.0).into(),
         (0.0, 2.0, 1.0).into(),
-        Phong::new(
-            (1.0, 1.0, 0.0).into(),
-            Some(Rc::clone(&texture)),
-            1.0,
-            0.0,
-            1.0,
-        ),
+        Material::new(phong, texture.clone()),
     );
     world.add_object(object);
 
