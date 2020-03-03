@@ -1,6 +1,8 @@
 use cgmath::InnerSpace;
+use cgmath::Point2;
 use image;
 use std::error::Error;
+use std::rc::Rc;
 
 use super::color::Color;
 use super::light::Light;
@@ -22,6 +24,7 @@ pub trait Material<T: Object> {
 
 pub struct Phong {
     color: Color,
+    texture: Option<Rc<Texture>>,
     diffuse: f32,
     specular: f32,
     shininess: f32,
@@ -30,12 +33,14 @@ pub struct Phong {
 impl Phong {
     pub fn new<T: Object>(
         color: Color,
+        texture: Option<Rc<Texture>>,
         diffuse: f32,
         specular: f32,
         shininess: f32,
     ) -> Box<dyn Material<T>> {
         Box::new(Phong {
             color,
+            texture,
             diffuse,
             specular,
             shininess,
@@ -54,6 +59,14 @@ impl<T: Object> Material<T> for Phong {
     ) -> Color {
         let intersection_point = incoming_ray.get_point_on_ray(t).into();
         let normal = object.get_normal(intersection_point);
+        let surface_color = {
+            if let Some(texture) = &self.texture {
+                let uv = object.get_uv(intersection_point);
+                texture.sample(uv)
+            } else {
+                self.color
+            }
+        };
         lights
             .iter()
             .map(|light| {
@@ -71,7 +84,7 @@ impl<T: Object> Material<T> for Phong {
                 );
                 let diffuse_intensity =
                     clamp(InnerSpace::dot(-light_ray.direction, normal), 0.0, 1.0);
-                self.color
+                surface_color
                     * (self.diffuse * diffuse_intensity
                         + self.specular * specular_intensity.powf(self.shininess))
                     * light_color
@@ -80,7 +93,7 @@ impl<T: Object> Material<T> for Phong {
     }
 }
 
-struct Texture {
+pub struct Texture {
     buf: image::RgbImage,
 }
 
@@ -94,12 +107,16 @@ impl Texture {
         Ok(Texture { buf })
     }
 
-    pub fn sample(&self, u: f32, v: f32) -> Color {
+    // TODO: Add options for wrapping/clamping and filter type.
+    pub fn sample(&self, point: Point2<f32>) -> Color {
+        let (u, v) = (point.x, point.y);
         let width = self.buf.width() as f32;
         let height = self.buf.height() as f32;
-        let (u, v) = (clamp(u, 0.0, 1.0), clamp(v, 0.0, 1.0));
-        let x = (u * width).trunc() as u32;
-        let y = (v * height).trunc() as u32;
+        let (u, v) = (u.rem_euclid(1.0), v.rem_euclid(1.0));
+        let x = (u * (width)).trunc();
+        let y = (v * (height)).trunc();
+        let x = clamp(x, 0.0, width - 1.0) as u32;
+        let y = clamp(y, 0.0, height - 1.0) as u32;
         let pixel = self.buf.get_pixel(x, y);
         let (r, g, b) = (pixel[0], pixel[1], pixel[2]);
         let r = (r as f32) / 255.0;
@@ -116,18 +133,27 @@ mod tests {
     #[test]
     fn test_sample_texture() {
         let texture = Texture::new("media/texture.png").unwrap();
-        assert_eq!(texture.sample(0.0, 0.0).get_rgb(), (64, 64, 64));
+        assert_eq!(texture.sample((0.0, 0.0).into()).get_rgb(), (64, 64, 64));
         assert_eq!(
-            texture.sample(16.0 / 255.0, 15.0 / 255.0).get_rgb(),
+            texture
+                .sample((16.0 / 255.0, 15.0 / 255.0).into())
+                .get_rgb(),
             (229, 22, 177)
         );
         assert_eq!(
-            texture.sample(16.0 / 255.0, 15.0 / 255.0).get_rgb(),
+            texture
+                .sample((16.0 / 255.0, 15.0 / 255.0).into())
+                .get_rgb(),
             (229, 22, 177)
         );
         assert_eq!(
-            texture.sample(46.0 / 255.0, 79.0 / 255.0).get_rgb(),
+            texture
+                .sample((46.0 / 255.0, 79.0 / 255.0).into())
+                .get_rgb(),
             (22, 229, 229)
         );
+        assert_eq!(texture.sample((1.0, 1.0).into()).get_rgb(), (64, 64, 64));
+        assert_eq!(texture.sample((2.0, 2.0).into()).get_rgb(), (64, 64, 64));
+        assert_eq!(texture.sample((-1.0, -1.0).into()).get_rgb(), (64, 64, 64));
     }
 }
