@@ -21,5 +21,6 @@
   - [x] Phong
   - [ ] Reflective
   - [ ] Transparent
-  - [ ] Texture
+  - [x] Texture
+    - [ ] Super sample texture
 - [ ] Focus blur

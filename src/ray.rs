@@ -3,8 +3,8 @@ use cgmath::{Matrix4, Point3, Vector3};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Ray {
-    pub position: Point3<f32>,
-    pub direction: Vector3<f32>,
+    position: Point3<f32>,
+    direction: Vector3<f32>,
 }
 
 impl Ray {
@@ -25,5 +25,14 @@ impl Ray {
     pub fn get_point_on_ray(&self, t: f32) -> (f32, f32, f32) {
         let p = self.position + t * self.direction;
         p.into()
+    }
+
+    // Returns the `t` that makes `ray.get_point_on_ray(t)` the closest to `point`.
+    pub fn get_t(&self, point: Point3<f32>) -> f32 {
+        InnerSpace::dot(point - self.position, self.direction)
+    }
+
+    pub fn get_direction(&self) -> Vector3<f32> {
+        self.direction
     }
 }

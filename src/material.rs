@@ -29,8 +29,8 @@ pub enum MaterialType {
 
 #[derive(Clone)]
 pub struct Material {
-    material: MaterialType,
-    texture: TextureType,
+    material_type: MaterialType,
+    texture_type: TextureType,
 }
 
 impl TextureType {
@@ -47,7 +47,7 @@ impl TextureType {
         TextureType::Flat(color)
     }
 
-    fn sample<T: Object>(&self, object: &T, intersection_point: Point3<f32>) -> Color {
+    fn sample(&self, object: &Object, intersection_point: Point3<f32>) -> Color {
         match self {
             TextureType::Texture(buf) => {
                 // TODO: Add options for wrapping/clamping and filter type.
@@ -95,18 +95,22 @@ impl MaterialType {
 }
 
 impl Material {
-    pub fn new(material: MaterialType, texture: TextureType) -> Self {
-        Material { material, texture }
+    pub fn new(material_type: MaterialType, texture_type: TextureType) -> Self {
+        Material {
+            material_type,
+            texture_type,
+        }
     }
-    pub fn get_color<T: Object>(
+
+    pub fn get_color(
         &self,
         incoming_ray: Ray,
         t: f32,
-        object: &T,
+        object: &Object,
         lights: Vec<&Light>,
         _world: &World,
     ) -> Color {
-        match self.material {
+        match self.material_type {
             MaterialType::Phong {
                 diffuse,
                 specular,
@@ -114,7 +118,7 @@ impl Material {
             } => {
                 let intersection_point = incoming_ray.get_point_on_ray(t).into();
                 let normal = object.get_normal(intersection_point);
-                let surface_color = self.texture.sample(object, intersection_point);
+                let surface_color = self.texture_type.sample(object, intersection_point);
                 lights
                     .iter()
                     .map(|light| {
@@ -124,14 +128,17 @@ impl Material {
                         let falloff = 5.0
                             / (0.001 + InnerSpace::magnitude2(intersection_point - light.position));
                         let light_color = falloff * light.color;
-                        let reflection_vector = reflect(light_ray.direction, normal);
+                        let reflection_vector = reflect(light_ray.get_direction(), normal);
                         let specular_intensity = clamp(
-                            InnerSpace::dot(reflection_vector, -incoming_ray.direction),
+                            InnerSpace::dot(reflection_vector, -incoming_ray.get_direction()),
                             0.0,
                             1.0,
                         );
-                        let diffuse_intensity =
-                            clamp(InnerSpace::dot(-light_ray.direction, normal), 0.0, 1.0);
+                        let diffuse_intensity = clamp(
+                            InnerSpace::dot(-light_ray.get_direction(), normal),
+                            0.0,
+                            1.0,
+                        );
                         surface_color
                             * (diffuse * diffuse_intensity
                                 + specular * specular_intensity.powf(shininess))

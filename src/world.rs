@@ -11,7 +11,7 @@ use super::ray::Ray;
 
 pub struct World {
     camera: Camera,
-    objects: Vec<Box<dyn Object>>,
+    objects: Vec<Object>,
     pub lights: Vec<Light>,
     background_color: Color,
 }
@@ -26,7 +26,7 @@ impl World {
         }
     }
 
-    pub fn add_object(&mut self, object: Box<dyn Object>) {
+    pub fn add_object(&mut self, object: Object) {
         self.objects.push(object);
     }
 
@@ -61,7 +61,7 @@ impl World {
         Ok(())
     }
 
-    pub fn get_closest_intersection(&self, ray: Ray) -> Option<(&Box<dyn Object>, f32)> {
+    pub fn get_closest_intersection(&self, ray: Ray) -> Option<(&Object, f32)> {
         self.objects
             .iter()
             .filter_map(|object| match object.get_intersection(ray) {
