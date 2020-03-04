@@ -75,7 +75,6 @@ impl TextureType {
 }
 
 impl Clone for TextureType {
-    // TODO: Make sure this is the right thing to do.
     fn clone(&self) -> Self {
         match self {
             TextureType::Texture(buf) => TextureType::Texture(Rc::clone(buf)),

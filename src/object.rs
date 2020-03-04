@@ -211,6 +211,8 @@ impl Object for Triangle {
     }
 
     fn get_uv(&self, point: Point3<f32>) -> Point2<f32> {
+        // TODO: This is not correct. The user needs to be
+        // able to specify uv coordinates for each vertex.
         let point = point.to_homogeneous().truncate();
         let u = InnerSpace::dot(self.b - self.a, point);
         let v = InnerSpace::dot(self.c - self.a, point);
