@@ -23,7 +23,7 @@ fn main() {
         (0.0, 1.0, 0.0).into(),
     );
 
-    let mut world = World::new(camera, (0.2, 0.2, 0.2).into());
+    let mut world = World::new(camera, Color::grayscale(0.2));
 
     let texture = TextureType::new_texture("media/texture.png").unwrap();
 
