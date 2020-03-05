@@ -1,3 +1,4 @@
+use cgmath::{Vector4};
 use super::utils::clamp;
 
 #[derive(Debug, Copy, Clone)]
@@ -27,6 +28,10 @@ impl Color {
             (self.g * 255.0) as u8,
             (self.b * 255.0) as u8,
         )
+    }
+
+    pub fn to_vec(&self) -> Vector4<f32> {
+        Vector4::new(self.r, self.g, self.b, self.a)
     }
 
     pub fn white() -> Color {

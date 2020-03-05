@@ -1,4 +1,4 @@
-use cgmath::{Point3};
+use cgmath::{Point3, Vector4};
 use cgmath::MetricSpace;
 use image;
 use std::error::Error;
@@ -41,6 +41,7 @@ impl World {
     where
         P: AsRef<std::path::Path>,
     {
+        assert!(samples_per_pixel != 0);
         let pixels: Vec<Vec<Color>> = (0..self.camera.width)
             .into_iter()
             .map(|x| {
@@ -51,10 +52,12 @@ impl World {
                         .into_iter()
                         .map(|_| {
                             let ray = self.camera.generate_ray(x, y);
-                            self.trace_ray(ray)
+                            let color = self.trace_ray(ray);
+                            color.to_vec()
                         })
-                        .fold(Color::rgb(0., 0., 0.), |acc, x| acc + x);
-                        rgb_sum / (samples_per_pixel as f32)
+                        .fold(Vector4::new(0., 0., 0., 0.), |acc, x| acc + x);
+                        let res = rgb_sum / (samples_per_pixel as f32);
+                        Color::rgba(res.x, res.y, res.z, res.w)
                     })
                     .collect()
             })
