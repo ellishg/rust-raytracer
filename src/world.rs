@@ -8,12 +8,14 @@ use super::color::Color;
 use super::light::Light;
 use super::object::Object;
 use super::ray::Ray;
+use rand::rngs::ThreadRng;
 
 pub struct World {
     camera: Camera,
     objects: Vec<Object>,
     pub lights: Vec<Light>,
     background_color: Color,
+    rng: ThreadRng,
 }
 
 impl World {
@@ -23,6 +25,7 @@ impl World {
             objects: vec![],
             lights: vec![],
             background_color,
+            rng: rand::thread_rng(),
         }
     }
 
@@ -37,7 +40,7 @@ impl World {
     /// Render the world scene to a png file with the given filename.
     /// The screen is treated as a width 1 square centered at the camera eye.
     /// TODO: Add options to control up sampling and down sampling
-    pub fn render<P>(&self, path: P, samples_per_pixel: u32) -> Result<(), Box<dyn Error>>
+    pub fn render<P>(&mut self, path: P, samples_per_pixel: u32) -> Result<(), Box<dyn Error>>
     where
         P: AsRef<std::path::Path>,
     {
@@ -51,7 +54,7 @@ impl World {
                         let rgb_sum = (0..samples_per_pixel)
                         .into_iter()
                         .map(|_| {
-                            let ray = self.camera.generate_ray(x, y);
+                            let ray = self.camera.generate_ray(x, y, &mut self.rng);
                             let color = self.trace_ray(ray);
                             color.to_vec()
                         })
