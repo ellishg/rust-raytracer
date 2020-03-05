@@ -38,7 +38,7 @@ impl Object {
             .objects
             .iter()
             .flat_map(|object| {
-                println!("Reading {} from {}", object.name, path.display());
+                debug!("Reading {} from {}", object.name, path.display());
                 let triangles: Vec<Object> = object
                     .groups
                     .iter()

@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate log;
+
 mod camera;
 mod color;
 mod light;
@@ -16,6 +19,8 @@ use object::Object;
 use world::World;
 
 fn main() {
+    env_logger::init();
+
     let camera = Camera::new(
         500,
         500,
