@@ -8,6 +8,7 @@ mod utils;
 mod world;
 
 use camera::Camera;
+use color::Color;
 use light::Light;
 use material::{Material, MaterialType, TextureType};
 use object::Object;
@@ -22,7 +23,7 @@ fn main() {
         (0.0, 1.0, 0.0).into(),
     );
 
-    let mut world = World::new(camera, (0.2, 0.2, 0.2).into());
+    let mut world = World::new(camera, Color::grayscale(0.2));
 
     let texture = TextureType::new_texture("media/texture.png").unwrap();
 
@@ -37,7 +38,7 @@ fn main() {
 
     // Create a red sphere.
     let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
-    let color = TextureType::new_flat((1.0, 0.0, 0.0).into());
+    let color = TextureType::new_flat(Color::red());
     let object = Object::new_sphere((0.0, 0.0, 0.0).into(), 1.0, Material::new(phong, color));
     world.add_object(object);
 
@@ -52,7 +53,7 @@ fn main() {
 
     // Create a yellow triangle.
     let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
-    let color = TextureType::new_flat((1.0, 1.0, 0.0).into());
+    let color = TextureType::new_flat(Color::yellow());
     let object = Object::new_triangle(
         (-2.0, 0.0, 1.0).into(),
         (-1.0, 0.0, 1.0).into(),
@@ -76,5 +77,5 @@ fn main() {
     let light = Light::new((-4.0, 2.0, 2.0).into(), (1.0, 1.0, 1.0).into());
     world.add_light(light);
 
-    world.render("out.png").unwrap();
+    world.render("out.png", 1).unwrap();
 }
