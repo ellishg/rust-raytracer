@@ -2,6 +2,7 @@ use cgmath::MetricSpace;
 use cgmath::{Point3, Vector4};
 use image;
 use std::error::Error;
+use std::path::Path;
 
 use super::camera::Camera;
 use super::color::Color;
@@ -42,9 +43,10 @@ impl World {
     /// TODO: Add options to control up sampling and down sampling
     pub fn render<P>(&mut self, path: P, samples_per_pixel: u16) -> Result<(), Box<dyn Error>>
     where
-        P: AsRef<std::path::Path>,
+        P: AsRef<Path>,
     {
         assert!(samples_per_pixel != 0);
+        // TODO: Make this multi-threaded.
         let pixels: Vec<Vec<Color>> = (0..self.camera.width)
             .into_iter()
             .map(|x| {
