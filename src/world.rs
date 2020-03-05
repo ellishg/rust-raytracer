@@ -40,7 +40,7 @@ impl World {
     /// Render the world scene to a png file with the given filename.
     /// The screen is treated as a width 1 square centered at the camera eye.
     /// TODO: Add options to control up sampling and down sampling
-    pub fn render<P>(&mut self, path: P, samples_per_pixel: u32) -> Result<(), Box<dyn Error>>
+    pub fn render<P>(&mut self, path: P, samples_per_pixel: u16) -> Result<(), Box<dyn Error>>
     where
         P: AsRef<std::path::Path>,
     {
@@ -59,7 +59,7 @@ impl World {
                             color.to_vec()
                         })
                         .fold(Vector4::new(0., 0., 0., 0.), |acc, x| acc + x);
-                        let res = rgb_sum / (samples_per_pixel as f32);
+                        let res = rgb_sum / samples_per_pixel.into();
                         Color::rgba(res.x, res.y, res.z, res.w)
                     })
                     .collect()
