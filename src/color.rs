@@ -1,5 +1,5 @@
-use cgmath::{Vector4};
 use super::utils::clamp;
+use cgmath::Vector4;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Color {

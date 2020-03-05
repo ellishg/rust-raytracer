@@ -7,8 +7,8 @@ mod ray;
 mod utils;
 mod world;
 
-use color::Color;
 use camera::Camera;
+use color::Color;
 use light::Light;
 use material::{Material, MaterialType, TextureType};
 use object::Object;

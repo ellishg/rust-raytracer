@@ -1,5 +1,5 @@
-use cgmath::{Point3, Vector4};
 use cgmath::MetricSpace;
+use cgmath::{Point3, Vector4};
 use image;
 use std::error::Error;
 
@@ -52,13 +52,13 @@ impl World {
                     .into_iter()
                     .map(|y| {
                         let rgb_sum = (0..samples_per_pixel)
-                        .into_iter()
-                        .map(|_| {
-                            let ray = self.camera.generate_ray(x, y, &mut self.rng);
-                            let color = self.trace_ray(ray);
-                            color.to_vec()
-                        })
-                        .fold(Vector4::new(0., 0., 0., 0.), |acc, x| acc + x);
+                            .into_iter()
+                            .map(|_| {
+                                let ray = self.camera.generate_ray(x, y, &mut self.rng);
+                                let color = self.trace_ray(ray);
+                                color.to_vec()
+                            })
+                            .fold(Vector4::new(0., 0., 0., 0.), |acc, x| acc + x);
                         let res = rgb_sum / samples_per_pixel.into();
                         Color::rgba(res.x, res.y, res.z, res.w)
                     })
