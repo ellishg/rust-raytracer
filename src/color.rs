@@ -54,6 +54,10 @@ impl Color {
         Color::rgb(0., 0., 1.)
     }
 
+    pub fn yellow() -> Color {
+        Color::rgb(1., 1., 0.)
+    }
+
     /// e.g. `color(value, value, value)`
     pub fn grayscale(value: f32) -> Color {
         Color::rgb(value, value, value)
