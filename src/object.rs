@@ -1,5 +1,8 @@
 use cgmath::{InnerSpace, SquareMatrix, Transform};
 use cgmath::{Matrix3, Matrix4, Point2, Point3, Vector3};
+use obj;
+use std::error::Error;
+use std::path::Path;
 
 use super::color::Color;
 use super::light::Light;
@@ -11,7 +14,6 @@ enum ObjectType {
     Sphere,
     Plane,
     Triangle(Point3<f32>, Point3<f32>, Point3<f32>),
-    // TriangleMesh(Vec<(Point3<f32>, Point3<f32>, Point3<f32>)),
 }
 
 pub struct Object {
@@ -21,6 +23,60 @@ pub struct Object {
 }
 
 impl Object {
+    /// Returns a list of triangles built from a .obj file.
+    pub fn new_mesh<P>(
+        path: P,
+        world_to_object: Matrix4<f32>,
+        material: Material,
+    ) -> Result<Vec<Self>, Box<dyn Error>>
+    where
+        P: AsRef<Path>,
+    {
+        let path = path.as_ref();
+        let obj = obj::Obj::<obj::SimplePolygon>::load(path)?;
+        let triangles: Vec<Object> = obj
+            .objects
+            .iter()
+            .flat_map(|object| {
+                println!("Reading {} from {}", object.name, path.display());
+                let triangles: Vec<Object> = object
+                    .groups
+                    .iter()
+                    .flat_map(|group| {
+                        let triangles: Vec<Object> = group
+                            .polys
+                            .iter()
+                            .map(|poly| {
+                                // TODO: Currently only triangle meshes are supported.
+                                assert_eq!(poly.len(), 3);
+                                let vertex_indices: Vec<usize> =
+                                    poly.iter().map(|tuple| tuple.0).collect();
+                                // TODO: .obj files also hold normal and material information.
+                                // let texture_indices: Vec<Option<usize>> = poly.iter().map(|tuple| tuple.1).collect();
+                                // let normal_indices: Vec<Option<usize>> = poly.iter().map(|tuple| tuple.2).collect();
+                                let vertices: Vec<[f32; 3]> = vertex_indices
+                                    .into_iter()
+                                    .map(|i| obj.position[i])
+                                    .collect();
+                                let a = vertices[0].into();
+                                let b = vertices[1].into();
+                                let c = vertices[2].into();
+                                Object {
+                                    object_type: ObjectType::Triangle(a, b, c),
+                                    world_to_object,
+                                    material: material.clone(),
+                                }
+                            })
+                            .collect();
+                        triangles
+                    })
+                    .collect();
+                triangles
+            })
+            .collect();
+        Ok(triangles)
+    }
+
     pub fn new_sphere(position: Point3<f32>, radius: f32, material: Material) -> Self {
         let scale = Matrix4::from_scale(radius);
         let translate = Matrix4::from_translation(position.to_homogeneous().truncate());
@@ -108,7 +164,7 @@ impl Object {
             ObjectType::Plane => {
                 // A Plane is at the origin and has a normal pointing up the y-axis
                 // (thanks to the matrix transformations).
-                let normal = self.get_normal((0.0, 0.0, 0.0).into());
+                let normal = (0.0, 1.0, 0.0).into();
                 if InnerSpace::dot(direction, normal) < 0.0 {
                     let t = InnerSpace::dot(-position, normal) / InnerSpace::dot(direction, normal);
                     if t > 0.0 {
@@ -121,7 +177,7 @@ impl Object {
                 }
             }
             ObjectType::Triangle(a, b, c) => {
-                let normal = self.get_normal((0.0, 0.0, 0.0).into());
+                let normal = (b - a).cross(c - a).normalize();
                 let point_on_plane = a.to_homogeneous().truncate();
                 if InnerSpace::dot(direction, normal) < 0.0 {
                     let t = InnerSpace::dot(point_on_plane - position, normal)
