@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate log;
 
+mod bvh;
 mod camera;
 mod color;
 mod light;

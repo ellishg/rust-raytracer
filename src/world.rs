@@ -5,6 +5,7 @@ use std::error::Error;
 use std::path::Path;
 use time;
 
+use super::bvh::Bvh;
 use super::camera::Camera;
 use super::color::Color;
 use super::light::Light;
@@ -84,23 +85,13 @@ impl World {
         Ok(())
     }
 
-    pub fn get_closest_intersection(&self, ray: Ray) -> Option<(&Object, f32)> {
-        self.objects
-            .iter()
-            .filter_map(|object| match object.get_intersection(ray) {
-                Some(t) => Some((object, t)),
-                None => None,
-            })
-            // Just a hacky way to find the smallest t value.
-            .min_by(|(_, t_left), (_, t_right)| {
-                t_left
-                    .partial_cmp(t_right)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
-    }
-
     fn trace_ray(&self, ray: Ray) -> Color {
-        if let Some((object, t)) = self.get_closest_intersection(ray) {
+        // TODO: Scene should give these values.
+        let min = (-10.0, -10.0, -10.0).into();
+        let max = (10.0, 10.0, 10.0).into();
+        let bvh = Bvh::new(&self.objects, min, max, 10);
+
+        if let Some((object, t)) = bvh.get_closest_intersection(&ray) {
             // Compute the color of the object that the ray first hits.
             let intersection_point: Point3<f32> = ray.get_point_on_ray(t).into();
             let illuminating_lights = self
@@ -108,7 +99,7 @@ impl World {
                 .iter()
                 .filter(|light| {
                     let light_ray = light.get_light_ray(intersection_point);
-                    if let Some((_, t)) = self.get_closest_intersection(light_ray) {
+                    if let Some((_, t)) = bvh.get_closest_intersection(&light_ray) {
                         // TODO: Figure out a better way to detect shadows.
                         // TODO: This should be in light struct.
                         let epsilon_squared = 0.1;

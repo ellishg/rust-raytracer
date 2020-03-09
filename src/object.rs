@@ -273,6 +273,64 @@ impl Object {
     fn get_world_to_object(&self) -> &Matrix4<f32> {
         &self.world_to_object
     }
+
+    /// Return the axis-align minimum bounding box for this object in world_space
+    pub fn get_bounding_box(&self) -> (Point3<f32>, Point3<f32>) {
+        let object_to_world = self.world_to_object.invert().unwrap();
+        match self.object_type {
+            ObjectType::Sphere => {
+                let center = object_to_world.transform_point((0.0, 0.0, 0.0).into());
+                let radius = object_to_world.transform_vector((1.0, 1.0, 1.0).into());
+                (center - radius, center + radius)
+            }
+            ObjectType::Plane => {
+                let center = object_to_world.transform_point((0.0, 0.0, 0.0).into());
+                let normal = object_to_world
+                    .transform_vector((0.0, 1.0, 0.0).into())
+                    .normalize();
+                // Pick an arbitrary orthogonal vector.
+                let orthogonal_x = {
+                    let axis: Vector3<f32> = if normal.x != 0.0 {
+                        (-normal.y, normal.x, 0.0).into()
+                    } else if normal.y != 0.0 {
+                        (normal.y, -normal.x, 0.0).into()
+                    } else {
+                        (normal.z, 0.0, -normal.x).into()
+                    };
+                    axis
+                };
+                let orthogonal_z = orthogonal_x.cross(normal);
+                // Now make the orthogonal vectors infinitely long.
+                let orthogonal_x = orthogonal_x.map(|v| {
+                    if v == 0.0 {
+                        0.0
+                    } else {
+                        std::f32::INFINITY * v
+                    }
+                });
+                let orthogonal_z = orthogonal_z.map(|v| {
+                    if v == 0.0 {
+                        0.0
+                    } else {
+                        std::f32::INFINITY * v
+                    }
+                });
+                (center - orthogonal_x, center + orthogonal_z)
+            }
+            ObjectType::Triangle(a, b, c) => {
+                let a = object_to_world.transform_point(a);
+                let b = object_to_world.transform_point(b);
+                let c = object_to_world.transform_point(c);
+                let min_x = a.x.min(b.x.min(c.x));
+                let min_y = a.y.min(b.y.min(c.y));
+                let min_z = a.z.min(b.z.min(c.z));
+                let max_x = a.x.max(b.x.max(c.x));
+                let max_y = a.y.max(b.y.max(c.y));
+                let max_z = a.z.max(b.z.max(c.z));
+                ((min_x, min_y, min_z).into(), (max_x, max_y, max_z).into())
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -286,9 +344,9 @@ mod tests {
         let m = Material::new(MaterialType::None, TextureType::None);
         let sphere = Object::new_sphere((1.0, 2.0, 3.0).into(), 0.25, m);
         let ray = Ray::new((0.0, 0.0, 0.0).into(), (-1.0, 0.0, 0.0).into());
-        assert!(sphere.get_intersection(ray).is_none());
+        assert!(sphere.get_intersection(&ray).is_none());
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (1.0, 1.0, 3.0).into());
-        assert!(sphere.get_intersection(ray).is_some());
+        assert!(sphere.get_intersection(&ray).is_some());
     }
 
     #[test]
@@ -304,11 +362,11 @@ mod tests {
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (0.0, -1.0, 0.5).into());
         assert!(plane.get_intersection(ray).is_some());
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (0.0, 1.0, 0.0).into());
-        assert!(plane.get_intersection(ray).is_none());
+        assert!(plane.get_intersection(&ray).is_none());
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (0.0, 0.0, 1.0).into());
-        assert!(plane.get_intersection(ray).is_none());
+        assert!(plane.get_intersection(&ray).is_none());
         let ray = Ray::new((0.0, -1.0, 0.0).into(), (0.0, 1.0, 0.0).into());
-        assert!(plane.get_intersection(ray).is_none());
+        assert!(plane.get_intersection(&ray).is_none());
     }
 
     #[test]
@@ -321,9 +379,9 @@ mod tests {
             m.clone(),
         );
         let ray = Ray::new((0.1, 0.1, 1.0).into(), (0.0, 0.0, -1.0).into());
-        assert!(triangle.get_intersection(ray).is_some());
+        assert!(triangle.get_intersection(&ray).is_some());
         let ray = Ray::new((1.0, 1.0, -1.0).into(), (0.0, 0.0, 1.0).into());
-        assert!(triangle.get_intersection(ray).is_none());
+        assert!(triangle.get_intersection(&ray).is_none());
 
         let triangle = Object::new_triangle(
             (0.0, 0.0, 0.0).into(),
@@ -332,8 +390,8 @@ mod tests {
             m.clone(),
         );
         let ray = Ray::new((0.1, 0.1, 1.0).into(), (0.0, 0.0, -1.0).into());
-        assert!(triangle.get_intersection(ray).is_none());
+        assert!(triangle.get_intersection(&ray).is_none());
         let ray = Ray::new((1.0, 1.0, -1.0).into(), (0.0, 0.0, 1.0).into());
-        assert!(triangle.get_intersection(ray).is_none());
+        assert!(triangle.get_intersection(&ray).is_none());
     }
 }
