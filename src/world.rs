@@ -77,7 +77,10 @@ impl World {
         });
         image.save(path)?;
 
-        debug!("Rendered image in {} seconds.", instant.elapsed().as_seconds_f32());
+        debug!(
+            "Rendered image in {} seconds.",
+            instant.elapsed().as_seconds_f32()
+        );
         Ok(())
     }
 

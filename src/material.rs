@@ -100,6 +100,9 @@ impl Material {
         }
     }
 
+    /// Returns the color of `object` at the point given by `incoming_ray.get_point_on_ray(t)`.
+    ///
+    /// All arguments are in world space coordinates.
     pub fn get_color(
         &self,
         incoming_ray: Ray,

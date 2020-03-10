@@ -141,9 +141,10 @@ impl Object {
                 let t = (center - position).dot(direction);
                 let closest_point_to_center: Point3<f32> =
                     object_space_ray.get_point_on_ray(t).into();
-                let dist_to_center = (center - closest_point_to_center).magnitude();
-                if dist_to_center <= radius {
-                    let delta = (radius - dist_to_center).sqrt();
+                let radius_sqrd = radius.powf(2.0);
+                let dist_to_center_sqrd = (center - closest_point_to_center).magnitude2();
+                if dist_to_center_sqrd <= radius_sqrd {
+                    let delta = (radius_sqrd - dist_to_center_sqrd).sqrt();
                     // Find the smallest positive t value.
                     vec![t - delta, t + delta]
                         .into_iter()
@@ -224,6 +225,8 @@ impl Object {
     }
 
     /// Returns the color of the object at the point given by `incoming_ray.get_point_on_ray(t)`.
+    ///
+    /// All arguments are in world space coordinates.
     pub fn get_color(
         &self,
         incoming_ray: Ray,
