@@ -8,7 +8,6 @@ use super::color::Color;
 use super::light::Light;
 use super::material::Material;
 use super::ray::Ray;
-use super::utils::safe_inverse;
 use super::world::World;
 
 enum ObjectType {
@@ -67,7 +66,7 @@ impl Object {
                                 Object {
                                     object_type: ObjectType::Triangle(a, b, c),
                                     object_to_world: object_to_world,
-                                    world_to_object: safe_inverse(object_to_world),
+                                    world_to_object: object_to_world.inverse_transform().unwrap(),
                                     material: material.clone(),
                                 }
                             })
@@ -124,7 +123,7 @@ impl Object {
         Object {
             object_type: self.object_type,
             object_to_world: object_to_world,
-            world_to_object: safe_inverse(object_to_world),
+            world_to_object: object_to_world.inverse_transform().unwrap(),
             material: self.material,
         }
     }
