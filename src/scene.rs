@@ -1,4 +1,5 @@
 use cgmath::{Deg, Matrix4, Transform};
+use rand::Rng;
 
 use super::color::Color;
 use super::camera::Camera;
@@ -60,6 +61,56 @@ pub fn load_basic(world: &mut World) -> () {
     world.add_light(light);
 }
 
+/// loads `num_spheres` randomly placed on a plane with a single light source
+pub fn load_random_spheres(world: &mut World, num_spheres: u16) {
+    // ground plane
+    let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
+    let color = TextureType::new_flat(Color::grayscale(0.2));
+    let object = Object::new_plane(
+        (0.0, 0.0, 0.0).into(),
+        (0.0, 1.0, 0.0).into(),
+        Material::new(phong, color),
+    );
+    world.add_object(object);
+
+    // back plane
+    let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
+    let color = TextureType::new_flat(Color::grayscale(0.8));
+    let object = Object::new_plane(
+        (0.0, 0.0, -3.0).into(),
+        (0.0, 0.0, 1.0).into(),
+        Material::new(phong, color),
+    );
+    world.add_object(object);
+
+    let mut rng = rand::thread_rng();
+    for _ in 0..num_spheres {
+        let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
+        let r: f32 = rng.gen_range(0.2, 1.);
+        let g: f32 = rng.gen_range(0.2, 1.);
+        let b: f32 = rng.gen_range(0.2, 1.);
+        let a: f32 = rng.gen_range(0.5, 1.);
+        let color = TextureType::new_flat(Color::rgba(r, g, b, a));
+
+        let x: f32 = rng.gen_range(-2.5, 2.5);
+        let y: f32 = rng.gen_range(0., 2.);
+        let z: f32 = rng.gen_range(-3., 3.);
+        let r: f32 = rng.gen_range(0.05, 0.2);
+
+        let object = Object::new_sphere(
+            (x, y, z).into(),
+            r,
+            Material::new(phong, color),
+        );
+        world.add_object(object);
+    }
+
+    let light = Light::new((1.0, 2.0, 2.5).into(), (1.0, 1.0, 1.0).into());
+    world.add_light(light);
+    let light = Light::new((-2.0, 2.0, 1.).into(), (1.0, 1.0, 1.0).into());
+    world.add_light(light);
+}
+
 pub fn load_suzanne(world: &mut World) {
     let phong = MaterialType::new_phong(0.2, 0.8, 1.0);
     let color = TextureType::new_flat(Color::red());
@@ -84,7 +135,7 @@ pub fn default_camera() -> Camera {
     Camera::new(
         500,
         500,
-        (0.0, 1.0, 5.0).into(),
+        (0.0, 1.5, 5.0).into(),
         (0.0, 0.0, 0.0).into(),
         (0.0, 1.0, 0.0).into(),
     )
