@@ -1,5 +1,4 @@
-use cgmath::InnerSpace;
-use cgmath::Point3;
+use cgmath::{InnerSpace, Point3};
 use image;
 use std::error::Error;
 use std::rc::Rc;
@@ -53,8 +52,7 @@ impl TextureType {
                 // TODO: Add options for wrapping/clamping and filter type.
                 let width = buf.width() as f32;
                 let height = buf.height() as f32;
-                let uv = object.get_uv(intersection_point);
-                let (u, v) = (uv.x, uv.y);
+                let (u, v) = object.get_uv(intersection_point).into();
                 // Wrap uv coordinates.
                 let (u, v) = (u.rem_euclid(1.0), v.rem_euclid(1.0));
                 let x = (u * width).trunc();
@@ -125,20 +123,17 @@ impl Material {
                         // TODO: Either add ambient component here, or create a new light type.
                         let light_ray = light.get_light_ray(intersection_point);
                         // TODO: Give falloff code to Light.
-                        let falloff = 5.0
-                            / (0.001 + InnerSpace::magnitude2(intersection_point - light.position));
+                        let falloff =
+                            5.0 / (0.001 + (intersection_point - light.position).magnitude2());
                         let light_color = falloff * light.color;
                         let reflection_vector = reflect(light_ray.get_direction(), normal);
                         let specular_intensity = clamp(
-                            InnerSpace::dot(reflection_vector, -incoming_ray.get_direction()),
+                            -reflection_vector.dot(incoming_ray.get_direction()),
                             0.0,
                             1.0,
                         );
-                        let diffuse_intensity = clamp(
-                            InnerSpace::dot(-light_ray.get_direction(), normal),
-                            0.0,
-                            1.0,
-                        );
+                        let diffuse_intensity =
+                            clamp(-light_ray.get_direction().dot(normal), 0.0, 1.0);
                         surface_color
                             * (diffuse * diffuse_intensity
                                 + specular * specular_intensity.powf(shininess))
