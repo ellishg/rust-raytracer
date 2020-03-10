@@ -28,11 +28,16 @@ impl Camera {
     /// Generates a ray for the given pixel location.
     /// pixel_x should be in (0, width)
     /// pixel_y should be in (0, height)
-    pub fn generate_ray<R: Rng>(&self, pixel_x: u32, pixel_y: u32, rng: &mut R) -> Ray {
+    /// rng can be None if no randomness should be added, else a rng
+    pub fn generate_ray<R: Rng>(&self, pixel_x: u32, pixel_y: u32, rng: Option<&mut R>) -> Ray {
         // TODO: This only works for a square screen
+        let (dx, dy) = match rng {
+            None => { (0., 0.) }
+            Some(rng) => { (rng.gen::<f32>() / 2., rng.gen::<f32>() / 2.) }
+        };
         // Pixel (0, 0) is in the top left corner.
-        let x = (pixel_x as f32 + rng.gen::<f32>() / 2.) / (self.width as f32) - 0.5;
-        let y = 0.5 - (pixel_y as f32 + rng.gen::<f32>() / 2.) / (self.height as f32);
+        let x = (pixel_x as f32 + dx) / (self.width as f32) - 0.5;
+        let y = 0.5 - (pixel_y as f32 + dy) / (self.height as f32);
         let dist = -1.0; // TODO: Something something focal length?
         let position = (x, y, dist).into();
         let direction = (x, y, dist).into();
