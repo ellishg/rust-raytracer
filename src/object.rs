@@ -284,38 +284,10 @@ impl Object {
                 (center - radius, center + radius)
             }
             ObjectType::Plane => {
-                let center = object_to_world.transform_point((0.0, 0.0, 0.0).into());
-                let normal = object_to_world
-                    .transform_vector((0.0, 1.0, 0.0).into())
-                    .normalize();
-                // Pick an arbitrary orthogonal vector.
-                let orthogonal_x = {
-                    let axis: Vector3<f32> = if normal.x != 0.0 {
-                        (-normal.y, normal.x, 0.0).into()
-                    } else if normal.y != 0.0 {
-                        (normal.y, -normal.x, 0.0).into()
-                    } else {
-                        (normal.z, 0.0, -normal.x).into()
-                    };
-                    axis
-                };
-                let orthogonal_z = orthogonal_x.cross(normal);
-                // Now make the orthogonal vectors infinitely long.
-                let orthogonal_x = orthogonal_x.map(|v| {
-                    if v == 0.0 {
-                        0.0
-                    } else {
-                        std::f32::INFINITY * v
-                    }
-                });
-                let orthogonal_z = orthogonal_z.map(|v| {
-                    if v == 0.0 {
-                        0.0
-                    } else {
-                        std::f32::INFINITY * v
-                    }
-                });
-                (center - orthogonal_x, center + orthogonal_z)
+                // Just return the infinite bounding box.
+                let inf: Point3<f32> =
+                    (std::f32::INFINITY, std::f32::INFINITY, std::f32::INFINITY).into();
+                (-1.0 * inf, inf)
             }
             ObjectType::Triangle(a, b, c) => {
                 let a = object_to_world.transform_point(a);

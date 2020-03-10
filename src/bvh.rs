@@ -106,20 +106,29 @@ impl AABB {
     }
 
     /// Return the union of all the bounding boxes.
+    ///
+    /// Bounds of infinite size are ignored.
     fn union(aabbs: Vec<&AABB>) -> Self {
         if aabbs.is_empty() {
             let zero = (0.0, 0.0, 0.0).into();
             AABB::new(zero, zero)
         } else {
-            let (mins, maxes): (Vec<Point3<f32>>, Vec<Point3<f32>>) =
-                aabbs.into_iter().map(|aabb| (aabb.min, aabb.max)).unzip();
             let cmp = |a: &f32, b: &f32| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal);
-            let min_x = mins.iter().map(|p| p.x).min_by(|a, b| cmp(a, b)).unwrap();
-            let min_y = mins.iter().map(|p| p.y).min_by(|a, b| cmp(a, b)).unwrap();
-            let min_z = mins.iter().map(|p| p.z).min_by(|a, b| cmp(a, b)).unwrap();
-            let max_x = maxes.iter().map(|p| p.x).max_by(|a, b| cmp(a, b)).unwrap();
-            let max_y = maxes.iter().map(|p| p.y).max_by(|a, b| cmp(a, b)).unwrap();
-            let max_z = maxes.iter().map(|p| p.z).max_by(|a, b| cmp(a, b)).unwrap();
+
+            let x_values = aabbs.iter().flat_map(|aabb| vec![aabb.min.x, aabb.max.x]);
+            let x_values = x_values.filter(|v| v.is_finite());
+            let y_values = aabbs.iter().flat_map(|aabb| vec![aabb.min.y, aabb.max.y]);
+            let y_values = y_values.filter(|v| v.is_finite());
+            let z_values = aabbs.iter().flat_map(|aabb| vec![aabb.min.z, aabb.max.z]);
+            let z_values = z_values.filter(|v| v.is_finite());
+
+            let min_x = x_values.clone().min_by(|a, b| cmp(a, b)).unwrap();
+            let min_y = y_values.clone().min_by(|a, b| cmp(a, b)).unwrap();
+            let min_z = z_values.clone().min_by(|a, b| cmp(a, b)).unwrap();
+            let max_x = x_values.max_by(|a, b| cmp(a, b)).unwrap();
+            let max_y = y_values.max_by(|a, b| cmp(a, b)).unwrap();
+            let max_z = z_values.max_by(|a, b| cmp(a, b)).unwrap();
+
             let min = (min_x, min_y, min_z).into();
             let max = (max_x, max_y, max_z).into();
             AABB::new(min, max)
@@ -231,6 +240,9 @@ mod tests {
         let ray = Ray::new((0.5, 0.0, 0.0).into(), (0.0, 0.0, 1.0).into());
         assert!(aabb.intersects(&ray));
 
+        let ray = Ray::new((0.0, 0.0, 10.5).into(), (0.0, 0.0, 1.0).into());
+        assert!(aabb.intersects(&ray));
+
         let ray = Ray::new((1.5, 0.0, 0.0).into(), (1.5, 0.0, 1.0).into());
         assert!(!aabb.intersects(&ray));
     }
@@ -254,7 +266,7 @@ mod tests {
     }
 
     #[test]
-    fn test() {
+    fn test_bvh_intersect() {
         let min = (-100.0, -100.0, -100.0).into();
         let max = (100.0, 100.0, 100.0).into();
         let leaf_size = 10;
@@ -283,6 +295,13 @@ mod tests {
 
         // Intersect plane
         let ray = Ray::new((0.0, 0.0, 0.0).into(), (4.0, -1.0, 1.0).into());
+
+        let plane = Object::new_plane((0.0, -5.0, 0.0).into(), (0.0, 1.0, 0.0).into(), m.clone());
+        let (min, max) = plane.get_bounding_box();
+        let aabb = AABB::new(min, max);
+        println!("{:?} {:?}", aabb, ray);
+        assert!(aabb.intersects(&ray));
+
         assert!(bvh.get_closest_intersection(&ray).is_some());
     }
 }
