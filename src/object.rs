@@ -132,7 +132,7 @@ impl Object {
     /// intersection point is at `ray.get_point_on_ray(t)`.
     ///
     /// Both `ray` and `t` are in world space coordinates.
-    pub fn get_intersection(&self, ray: Ray) -> Option<f32> {
+    pub fn get_intersection(&self, ray: &Ray) -> Option<f32> {
         let object_space_ray = ray.transform_using(self.get_world_to_object());
         let position: Point3<f32> = object_space_ray.get_point_on_ray(0.0).into();
         let direction = object_space_ray.get_direction();
@@ -274,32 +274,39 @@ impl Object {
         &self.world_to_object
     }
 
-    /// Return the axis-align minimum bounding box for this object in world_space
+    /// Return the axis-aligned minimum bounding box for this object
+    /// in world space coordinates.
     pub fn get_bounding_box(&self) -> (Point3<f32>, Point3<f32>) {
         let object_to_world = self.world_to_object.invert().unwrap();
         match self.object_type {
-            ObjectType::Sphere => {
-                let center = object_to_world.transform_point((0.0, 0.0, 0.0).into());
-                let radius = object_to_world.transform_vector((1.0, 1.0, 1.0).into());
+            ObjectType::Sphere(center, radius) => {
+                let center = object_to_world.transform_point(center);
+                // FIXME: Radius is not affected by transformation matrix.
+                let radius: Vector3<f32> = (radius, radius, radius).into();
                 (center - radius, center + radius)
             }
-            ObjectType::Plane => {
-                // Just return the infinite bounding box.
-                let inf: Point3<f32> =
-                    (std::f32::INFINITY, std::f32::INFINITY, std::f32::INFINITY).into();
-                (-1.0 * inf, inf)
+            ObjectType::Quad(a, b, c, d) => {
+                let inf = (std::f32::INFINITY, std::f32::INFINITY, std::f32::INFINITY).into();
+                // Find the min/max of each component over all points.
+                vec![a, b, c, d]
+                    .into_iter()
+                    .map(|v| object_to_world.transform_point(v))
+                    .fold((inf, -1.0 * inf), |(min, max), v| {
+                        let min = (min.x.min(v.x), min.y.min(v.y), min.z.min(v.z)).into();
+                        let max = (max.x.max(v.x), max.y.max(v.y), max.z.max(v.z)).into();
+                        (min, max)
+                    })
             }
             ObjectType::Triangle(a, b, c) => {
-                let a = object_to_world.transform_point(a);
-                let b = object_to_world.transform_point(b);
-                let c = object_to_world.transform_point(c);
-                let min_x = a.x.min(b.x.min(c.x));
-                let min_y = a.y.min(b.y.min(c.y));
-                let min_z = a.z.min(b.z.min(c.z));
-                let max_x = a.x.max(b.x.max(c.x));
-                let max_y = a.y.max(b.y.max(c.y));
-                let max_z = a.z.max(b.z.max(c.z));
-                ((min_x, min_y, min_z).into(), (max_x, max_y, max_z).into())
+                let inf = (std::f32::INFINITY, std::f32::INFINITY, std::f32::INFINITY).into();
+                vec![a, b, c]
+                    .into_iter()
+                    .map(|v| object_to_world.transform_point(v))
+                    .fold((inf, -1.0 * inf), |(min, max), v| {
+                        let min = (min.x.min(v.x), min.y.min(v.y), min.z.min(v.z)).into();
+                        let max = (max.x.max(v.x), max.y.max(v.y), max.z.max(v.z)).into();
+                        (min, max)
+                    })
             }
         }
     }
@@ -310,6 +317,7 @@ mod tests {
     use super::Object;
     use crate::material::{Material, MaterialType, TextureType};
     use crate::ray::Ray;
+    use cgmath::{InnerSpace, Point3};
 
     #[test]
     fn test_sphere() {
@@ -324,7 +332,7 @@ mod tests {
     #[test]
     fn test_quad() {
         let m = Material::new(MaterialType::None, TextureType::None);
-        let plane = Object::new_quad(
+        let quad = Object::new_quad(
             (-1.0, 0.0, 1.0).into(),
             (1.0, 0.0, 1.0).into(),
             (1.0, 0.0, -1.0).into(),
@@ -332,13 +340,13 @@ mod tests {
             m,
         );
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (0.0, -1.0, 0.5).into());
-        assert!(plane.get_intersection(ray).is_some());
+        assert!(quad.get_intersection(&ray).is_some());
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (0.0, 1.0, 0.0).into());
-        assert!(plane.get_intersection(&ray).is_none());
+        assert!(quad.get_intersection(&ray).is_none());
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (0.0, 0.0, 1.0).into());
-        assert!(plane.get_intersection(&ray).is_none());
+        assert!(quad.get_intersection(&ray).is_none());
         let ray = Ray::new((0.0, -1.0, 0.0).into(), (0.0, 1.0, 0.0).into());
-        assert!(plane.get_intersection(&ray).is_none());
+        assert!(quad.get_intersection(&ray).is_none());
     }
 
     #[test]
@@ -365,5 +373,35 @@ mod tests {
         assert!(triangle.get_intersection(&ray).is_none());
         let ray = Ray::new((1.0, 1.0, -1.0).into(), (0.0, 0.0, 1.0).into());
         assert!(triangle.get_intersection(&ray).is_none());
+    }
+
+    #[test]
+    fn test_sphere_bounding_box() {
+        let epsilon = 1e-4;
+        let m = Material::new(MaterialType::None, TextureType::None);
+        let sphere = Object::new_sphere((2.0, 0.0, 1.0).into(), 1.5, m.clone());
+        let (a, b) = sphere.get_bounding_box();
+        let a_actual: Point3<f32> = (0.5, -1.5, -0.5).into();
+        let b_actual: Point3<f32> = (3.5, 1.5, 2.5).into();
+        assert!((a - a_actual).magnitude() < epsilon);
+        assert!((b - b_actual).magnitude() < epsilon);
+    }
+
+    #[test]
+    fn test_quad_bounding_box() {
+        let epsilon = 1e-4;
+        let m = Material::new(MaterialType::None, TextureType::None);
+        let quad = Object::new_quad(
+            (1.0, 1.0, 1.0).into(),
+            (3.0, 1.0, 1.0).into(),
+            (3.0, 1.0, 0.0).into(),
+            (1.0, 1.0, 0.0).into(),
+            m.clone(),
+        );
+        let (a, b) = quad.get_bounding_box();
+        let a_actual: Point3<f32> = (1.0, 1.0, 0.0).into();
+        let b_actual: Point3<f32> = (3.0, 1.0, 1.0).into();
+        assert!((a - a_actual).magnitude() < epsilon);
+        assert!((b - b_actual).magnitude() < epsilon);
     }
 }

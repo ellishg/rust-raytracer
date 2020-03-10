@@ -278,8 +278,14 @@ mod tests {
             m.clone(),
         );
         let sphere = Object::new_sphere((0.0, 5.0, 1.0).into(), 0.5, m.clone());
-        let plane = Object::new_plane((0.0, -5.0, 0.0).into(), (0.0, 1.0, 0.0).into(), m.clone());
-        let objects = vec![triangle, sphere, plane];
+        let quad = Object::new_quad(
+            (0.0, -5.0, 0.0).into(),
+            (1.0, -5.0, 0.0).into(),
+            (1.0, -5.0, -1.0).into(),
+            (0.0, -5.0, -1.0).into(),
+            m.clone(),
+        );
+        let objects = vec![triangle, sphere, quad];
         let bvh = Bvh::new(&objects, min, max, leaf_size);
 
         let ray = Ray::new((-1.0, 0.0, 0.0).into(), (-1.0, 0.0, 1.0).into());
@@ -293,15 +299,11 @@ mod tests {
         let ray = Ray::new((0.0, 5.25, 0.0).into(), (0.0, 0.0, 1.0).into());
         assert!(bvh.get_closest_intersection(&ray).is_some());
 
-        // Intersect plane
-        let ray = Ray::new((0.0, 0.0, 0.0).into(), (4.0, -1.0, 1.0).into());
+        // Intersect quad
+        let ray = Ray::new((0.0, 0.0, 0.0).into(), (0.0, -1.0, 0.0).into());
+        assert!(bvh.get_closest_intersection(&ray).is_some());
 
-        let plane = Object::new_plane((0.0, -5.0, 0.0).into(), (0.0, 1.0, 0.0).into(), m.clone());
-        let (min, max) = plane.get_bounding_box();
-        let aabb = AABB::new(min, max);
-        println!("{:?} {:?}", aabb, ray);
-        assert!(aabb.intersects(&ray));
-
+        let ray = Ray::new((0.0, 0.0, 0.0).into(), (0.1, -5.0, -0.1).into());
         assert!(bvh.get_closest_intersection(&ray).is_some());
     }
 }
