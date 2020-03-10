@@ -1,6 +1,5 @@
 use super::ray::Ray;
-use cgmath::Transform;
-use cgmath::{Matrix4, Point3, Vector3};
+use cgmath::{Matrix4, Point3, SquareMatrix, Vector3};
 use rand::Rng;
 
 pub struct Camera {
@@ -18,7 +17,7 @@ impl Camera {
         up: Vector3<f32>,
     ) -> Camera {
         let world_to_camera = Matrix4::look_at(eye, at, up);
-        let camera_to_world = Transform::inverse_transform(&world_to_camera).unwrap();
+        let camera_to_world = world_to_camera.invert().unwrap();
         Camera {
             width,
             height,
@@ -39,6 +38,6 @@ impl Camera {
         let direction = (x, y, dist).into();
         let ray = Ray::new(position, direction);
         // Transform ray into world space.
-        ray.transform_using(self.camera_to_world)
+        ray.transform_using(&self.camera_to_world)
     }
 }

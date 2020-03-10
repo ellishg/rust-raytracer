@@ -15,7 +15,7 @@ impl Ray {
         }
     }
 
-    pub fn transform_using(&self, transform: Matrix4<f32>) -> Ray {
+    pub fn transform_using(&self, transform: &Matrix4<f32>) -> Ray {
         Ray::new(
             transform.transform_point(self.position),
             transform.transform_vector(self.direction),
@@ -29,7 +29,7 @@ impl Ray {
 
     // Returns the `t` that makes `ray.get_point_on_ray(t)` the closest to `point`.
     pub fn get_t(&self, point: Point3<f32>) -> f32 {
-        InnerSpace::dot(point - self.position, self.direction)
+        (point - self.position).dot(self.direction)
     }
 
     pub fn get_direction(&self) -> Vector3<f32> {

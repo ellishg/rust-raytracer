@@ -12,8 +12,8 @@ mod utils;
 mod world;
 
 use color::Color;
-use world::World;
 use scene::*;
+use world::World;
 
 fn main() {
     env_logger::init();

@@ -3,6 +3,7 @@ use cgmath::{Point3, Vector4};
 use image;
 use std::error::Error;
 use std::path::Path;
+use time;
 
 use super::camera::Camera;
 use super::color::Color;
@@ -46,6 +47,8 @@ impl World {
         P: AsRef<Path>,
     {
         assert!(samples_per_pixel != 0);
+        let instant = time::Instant::now();
+
         // TODO: Make this multi-threaded.
         let pixels: Vec<Vec<Color>> = (0..self.camera.width)
             .into_iter()
@@ -73,6 +76,11 @@ impl World {
             pixel
         });
         image.save(path)?;
+
+        debug!(
+            "Rendered image in {} seconds.",
+            instant.elapsed().as_seconds_f32()
+        );
         Ok(())
     }
 

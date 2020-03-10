@@ -1,5 +1,4 @@
-use cgmath::InnerSpace;
-use cgmath::Vector3;
+use cgmath::{InnerSpace, Vector3};
 
 /// Clamps a value x to be in the range (low, high)
 // `f32.clamp` is nightly-only :(
@@ -14,7 +13,7 @@ pub fn clamp(x: f32, low: f32, high: f32) -> f32 {
 }
 
 pub fn reflect(v: Vector3<f32>, normal: Vector3<f32>) -> Vector3<f32> {
-    (v - 2.0 * InnerSpace::dot(v, normal) * normal).normalize()
+    (v - 2.0 * v.dot(normal) * normal).normalize()
 }
 
 #[cfg(test)]
