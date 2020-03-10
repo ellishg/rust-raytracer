@@ -8,6 +8,7 @@ use super::color::Color;
 use super::light::Light;
 use super::material::Material;
 use super::ray::Ray;
+use super::utils::safe_inverse;
 use super::world::World;
 
 enum ObjectType {
@@ -19,8 +20,8 @@ enum ObjectType {
 pub struct Object {
     object_type: ObjectType,
     // TODO: Make `object_to_world` a reference to save memory
-    object_to_world: Option<Matrix4<f32>>,
-    world_to_object: Option<Matrix4<f32>>,
+    object_to_world: Matrix4<f32>,
+    world_to_object: Matrix4<f32>,
     material: Material,
 }
 
@@ -65,8 +66,8 @@ impl Object {
                                 let c = vertices[2].into();
                                 Object {
                                     object_type: ObjectType::Triangle(a, b, c),
-                                    object_to_world: Some(object_to_world),
-                                    world_to_object: None,
+                                    object_to_world: object_to_world,
+                                    world_to_object: safe_inverse(object_to_world),
                                     material: material.clone(),
                                 }
                             })
@@ -83,8 +84,8 @@ impl Object {
     pub fn new_sphere(center: Point3<f32>, radius: f32, material: Material) -> Self {
         Object {
             object_type: ObjectType::Sphere(center, radius),
-            object_to_world: None,
-            world_to_object: None,
+            object_to_world: Matrix4::identity(),
+            world_to_object: Matrix4::identity(),
             material,
         }
     }
@@ -98,8 +99,8 @@ impl Object {
     ) -> Self {
         Object {
             object_type: ObjectType::Quad(a, b, c, d),
-            object_to_world: None,
-            world_to_object: None,
+            object_to_world: Matrix4::identity(),
+            world_to_object: Matrix4::identity(),
             material,
         }
     }
@@ -112,8 +113,8 @@ impl Object {
     ) -> Self {
         Object {
             object_type: ObjectType::Triangle(a, b, c),
-            object_to_world: None,
-            world_to_object: None,
+            object_to_world: Matrix4::identity(),
+            world_to_object: Matrix4::identity(),
             material,
         }
     }
@@ -122,8 +123,8 @@ impl Object {
         let object_to_world = object_to_world * self.get_object_to_world();
         Object {
             object_type: self.object_type,
-            object_to_world: Some(object_to_world),
-            world_to_object: None,
+            object_to_world: object_to_world,
+            world_to_object: safe_inverse(object_to_world),
             material: self.material,
         }
     }
@@ -266,13 +267,12 @@ impl Object {
         }
     }
 
-    fn get_object_to_world(&self) -> Matrix4<f32> {
-        self.object_to_world.unwrap_or(Matrix4::identity())
+    fn get_object_to_world(&self) -> &Matrix4<f32> {
+        &self.object_to_world
     }
 
-    fn get_world_to_object(&self) -> Matrix4<f32> {
-        self.world_to_object
-            .unwrap_or(self.get_object_to_world().invert().unwrap())
+    fn get_world_to_object(&self) -> &Matrix4<f32> {
+        &self.world_to_object
     }
 }
 

@@ -15,7 +15,7 @@ impl Ray {
         }
     }
 
-    pub fn transform_using(&self, transform: Matrix4<f32>) -> Ray {
+    pub fn transform_using(&self, transform: &Matrix4<f32>) -> Ray {
         Ray::new(
             transform.transform_point(self.position),
             transform.transform_vector(self.direction),

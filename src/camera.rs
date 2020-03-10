@@ -38,6 +38,6 @@ impl Camera {
         let direction = (x, y, dist).into();
         let ray = Ray::new(position, direction);
         // Transform ray into world space.
-        ray.transform_using(self.camera_to_world)
+        ray.transform_using(&self.camera_to_world)
     }
 }
