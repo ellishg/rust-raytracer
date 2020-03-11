@@ -32,8 +32,8 @@ impl Camera {
     pub fn generate_ray<R: Rng>(&self, pixel_x: u32, pixel_y: u32, rng: Option<&mut R>) -> Ray {
         // TODO: This only works for a square screen
         let (dx, dy) = match rng {
-            None => { (0., 0.) }
-            Some(rng) => { (rng.gen::<f32>() / 2., rng.gen::<f32>() / 2.) }
+            None => (0., 0.),
+            Some(rng) => (rng.gen::<f32>() / 2., rng.gen::<f32>() / 2.),
         };
         // Pixel (0, 0) is in the top left corner.
         let x = (pixel_x as f32 + dx) / (self.width as f32) - 0.5;
