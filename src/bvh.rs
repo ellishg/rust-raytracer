@@ -50,13 +50,13 @@ impl AABB {
     /// `ray.get_point_on_ray(t)`. Otherwise returns `None`.
     fn intersect(&self, ray: &Ray) -> Option<f32> {
         enum Interval {
-            Top,              // An infinite interval.
-            Closed(f32, f32), // A closed interval.
-            Bottom,           // An empty interval.
+            Infinite,
+            Closed(f32, f32),
+            Empty,
         };
 
         impl Interval {
-            /// Contruct the interval that a ray intersects some axis on an AABB.
+            /// Construct the interval that a ray intersects some axis on an AABB.
             /// `(a, b)` are the bounds of this axis, `x` is the start of the ray,
             /// and `slope` is the direction of this ray.
             fn new(a: f32, b: f32, x: f32, slope: f32) -> Interval {
@@ -64,10 +64,10 @@ impl AABB {
                     // The ray is parallel to this axis.
                     if a <= x && x <= b {
                         // The ray is inside the box for this axis.
-                        Interval::Top
+                        Interval::Infinite
                     } else {
                         // The ray is outide the box for this axis.
-                        Interval::Bottom
+                        Interval::Empty
                     }
                 } else {
                     let a = (a - x) / slope;
@@ -79,12 +79,12 @@ impl AABB {
             /// Return the intersection of the two intervals.
             fn intersect(self, other: Interval) -> Interval {
                 match self {
-                    Interval::Top => other,
-                    Interval::Bottom => Interval::Bottom,
+                    Interval::Infinite => other,
+                    Interval::Empty => Interval::Empty,
                     Interval::Closed(a, b) => {
                         match other {
-                            Interval::Top => Interval::Closed(a, b),
-                            Interval::Bottom => Interval::Bottom,
+                            Interval::Infinite => Interval::Closed(a, b),
+                            Interval::Empty => Interval::Empty,
                             Interval::Closed(c, d) => {
                                 // Construct a new interval from the greatest lower bound and the least upper bound.
                                 let x = f32::max(a, c);
@@ -93,7 +93,7 @@ impl AABB {
                                     Interval::Closed(x, y)
                                 } else {
                                     // The intervals do not overlap, return the empty interval.
-                                    Interval::Bottom
+                                    Interval::Empty
                                 }
                             }
                         }
@@ -109,9 +109,15 @@ impl AABB {
         let z_interval = Interval::new(self.min.z, self.max.z, position.z, direction.z);
         let t_interval = x_interval.intersect(y_interval.intersect(z_interval));
         match t_interval {
-            Interval::Top => unreachable!(),
-            Interval::Closed(t_min, _t_max) => Some(t_min),
-            Interval::Bottom => None,
+            Interval::Infinite => unreachable!(),
+            Interval::Closed(t_min, t_max) => {
+                if t_min < 0. {
+                    Some(t_max)
+                } else {
+                    Some(t_min)
+                }
+            }
+            Interval::Empty => None,
         }
     }
 
@@ -252,6 +258,30 @@ mod tests {
 
         let ray = Ray::new((1.5, 0.0, 0.0).into(), (1.5, 0.0, 1.0).into());
         assert!(aabb.intersect(&ray).is_none());
+
+        let min = (0., 0., 0.).into();
+        let max = (1.0, 1.0, 1.0).into();
+        let aabb = AABB::new(min, max);
+
+        let ray = Ray::new((-0.5, -0.5, -0.5).into(), (0.5, 0.5, 0.5).into());
+        assert!(aabb.intersect(&ray).is_some());
+
+        let ray = Ray::new((-0.5, -0.5, -0.5).into(), (-0.5, 0.5, 0.5).into());
+        assert!(aabb.intersect(&ray).is_none());
+
+        let ray = Ray::new((-1.0, 0.5, 0.5).into(), (1.0, 0., 0.).into());
+        assert_eq!(aabb.intersect(&ray), Some(1.));
+
+        let ray = Ray::new((-0.5, -0.5, 0.5).into(), (0.5, 0.5, 0.).into());
+        assert_eq!(aabb.intersect(&ray), Some(1. / (2. as f32).sqrt()));
+
+        // ray grazes a corner
+        let ray = Ray::new((-1.0, -1.0, 0.).into(), (1., 0.5, 0.).into());
+        assert_eq!(aabb.intersect(&ray), Some(ray.get_t((1., 0., 0.).into())));
+
+        // ray starts in the middle and shoots out
+        let ray = Ray::new((0.5, 0.5, 0.5).into(), (1., 0., 0.).into());
+        assert_eq!(aabb.intersect(&ray), Some(0.5));
     }
 
     #[test]

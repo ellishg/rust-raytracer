@@ -16,7 +16,7 @@ pub fn reflect(v: Vector3<f32>, normal: Vector3<f32>) -> Vector3<f32> {
     (v - 2.0 * v.dot(normal) * normal).normalize()
 }
 
-/// Returns the min and the max of each dimension for the collection of points.
+/// Returns the (min, max) of each dimension for the collection of points.
 pub fn component_wise_range(mut points: Vec<Point3<f32>>) -> (Point3<f32>, Point3<f32>) {
     let v = points.pop().expect("points cannot be empty!");
     let min = points.iter().fold(v, |a, b| {
@@ -30,7 +30,7 @@ pub fn component_wise_range(mut points: Vec<Point3<f32>>) -> (Point3<f32>, Point
 
 #[cfg(test)]
 mod tests {
-    use super::{clamp, reflect};
+    use super::{clamp, reflect, component_wise_range};
     use cgmath::MetricSpace;
     use cgmath::Vector3;
 
@@ -46,5 +46,16 @@ mod tests {
         let v = (1.0, 0.0, 0.0).into();
         let n = 2_f32.sqrt() / 2.0 * Vector3::new(-1.0, 1.0, 0.0);
         assert!(reflect(v, n).distance((0.0, 1.0, 0.0).into()) < 1e-5);
+    }
+
+    #[test]
+    fn test_component_wise_range() {
+        let points = vec![
+            (-1., 0., 1.).into(),
+            (0., -1., 0.).into(),
+            (1., 0., 0.).into(),
+        ];
+        let range = component_wise_range(points);
+        assert_eq!(range, ((-1., -1., 0.).into(), (1., 0., 1.).into()));
     }
 }
