@@ -46,40 +46,72 @@ impl AABB {
         AABB { min, max }
     }
 
-    /// Returns `true` if `ray` intersects this bounding box.
-    fn intersects(&self, ray: &Ray) -> bool {
-        // FIXME: This function needs to be fixed.
-        // Was following
-        // https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
-        // but it looks like I have a bug.
-        // TODO: Return Some(t) instead of true.
-        let aux = |min: f32, max: f32, x: f32, slope: f32| {
-            if slope == 0.0 {
-                (std::f32::NEG_INFINITY, std::f32::INFINITY)
-            } else {
-                let a = (min - x) / slope;
-                let b = (max - x) / slope;
-                if a < b {
-                    return (a, b);
+    /// Returns `Some(t)` if `ray` intersects this bounding box at a point give by
+    /// `ray.get_point_on_ray(t)`. Otherwise returns `None`.
+    fn intersect(&self, ray: &Ray) -> Option<f32> {
+        enum Interval {
+            Top,              // An infinite interval.
+            Closed(f32, f32), // A closed interval.
+            Bottom,           // An empty interval.
+        };
+
+        impl Interval {
+            /// Contruct the interval that a ray intersects some axis on an AABB.
+            /// `(a, b)` are the bounds of this axis, `x` is the start of the ray,
+            /// and `slope` is the direction of this ray.
+            fn new(a: f32, b: f32, x: f32, slope: f32) -> Interval {
+                if slope == 0.0 {
+                    // The ray is parallel to this axis.
+                    if a <= x && x <= b {
+                        // The ray is inside the box for this axis.
+                        Interval::Top
+                    } else {
+                        // The ray is outide the box for this axis.
+                        Interval::Bottom
+                    }
                 } else {
-                    (b, a)
+                    let a = (a - x) / slope;
+                    let b = (b - x) / slope;
+                    Interval::Closed(f32::min(a, b), f32::max(a, b))
                 }
             }
-        };
+
+            /// Return the intersection of the two intervals.
+            fn intersect(self, other: Interval) -> Interval {
+                match self {
+                    Interval::Top => other,
+                    Interval::Bottom => Interval::Bottom,
+                    Interval::Closed(a, b) => {
+                        match other {
+                            Interval::Top => Interval::Closed(a, b),
+                            Interval::Bottom => Interval::Bottom,
+                            Interval::Closed(c, d) => {
+                                // Construct a new interval from the greatest lower bound and the least upper bound.
+                                let x = f32::max(a, c);
+                                let y = f32::min(b, d);
+                                if x <= y {
+                                    Interval::Closed(x, y)
+                                } else {
+                                    // The intervals do not overlap, return the empty interval.
+                                    Interval::Bottom
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let position: Point3<f32> = ray.get_point_on_ray(0.0).into();
         let direction = ray.get_direction();
-        let range = aux(self.min.x, self.max.x, position.x, direction.x);
-        let range_y = aux(self.min.y, self.max.y, position.y, direction.y);
-        if range.0 > range_y.1 || range_y.0 > range.1 {
-            false
-        } else {
-            let range = (range.0.max(range_y.0), range.1.min(range_y.1));
-            let range_z = aux(self.min.z, self.max.z, position.z, direction.z);
-            if range.0 > range_z.1 || range_z.0 > range.1 {
-                false
-            } else {
-                true
-            }
+        let x_interval = Interval::new(self.min.x, self.max.x, position.x, direction.x);
+        let y_interval = Interval::new(self.min.y, self.max.y, position.y, direction.y);
+        let z_interval = Interval::new(self.min.z, self.max.z, position.z, direction.z);
+        let t_interval = x_interval.intersect(y_interval.intersect(z_interval));
+        match t_interval {
+            Interval::Top => unreachable!(),
+            Interval::Closed(t_min, _t_max) => Some(t_min),
+            Interval::Bottom => None,
         }
     }
 
@@ -133,7 +165,7 @@ impl<'a> BvhTree<'a> {
     fn get_closest_intersection(&self, ray: &Ray) -> Option<(&Object, f32)> {
         match self {
             BvhTree::Node(aabb, left, right) => {
-                if aabb.intersects(ray) {
+                if let Some(_) = aabb.intersect(ray) {
                     [left, right]
                         .iter()
                         .filter_map(|bvh| bvh.get_closest_intersection(ray))
@@ -148,7 +180,7 @@ impl<'a> BvhTree<'a> {
                 }
             }
             BvhTree::Leaf(aabb, objects) => {
-                if aabb.intersects(ray) {
+                if let Some(_) = aabb.intersect(ray) {
                     objects
                         .iter()
                         .filter_map(|object| match object.get_intersection(ray) {
@@ -204,16 +236,22 @@ mod tests {
         let aabb = AABB::new(min, max);
 
         let ray = Ray::new((0.0, 0.0, 0.0).into(), (0.0, 0.0, 1.0).into());
-        assert!(aabb.intersects(&ray));
+        assert!(aabb.intersect(&ray).is_some());
 
         let ray = Ray::new((0.5, 0.0, 0.0).into(), (0.0, 0.0, 1.0).into());
-        assert!(aabb.intersects(&ray));
+        assert!(aabb.intersect(&ray).is_some());
+
+        let ray = Ray::new((-10.1, -10.0, 0.0).into(), (10.1, 10.2, 10.3).into());
+        assert!(aabb.intersect(&ray).is_some());
 
         let ray = Ray::new((0.0, 0.0, 10.5).into(), (0.0, 0.0, 1.0).into());
-        assert!(aabb.intersects(&ray));
+        assert!(aabb.intersect(&ray).is_some());
+
+        let ray = Ray::new((0.0, 0.0, 10.5).into(), (1.0, 1.0, 1.0).into());
+        assert!(aabb.intersect(&ray).is_some());
 
         let ray = Ray::new((1.5, 0.0, 0.0).into(), (1.5, 0.0, 1.0).into());
-        assert!(!aabb.intersects(&ray));
+        assert!(aabb.intersect(&ray).is_none());
     }
 
     #[test]
@@ -244,9 +282,15 @@ mod tests {
         let ray = Ray::new((0.1, 0.1, 0.0).into(), (0.0, 0.0, 1.0).into());
         assert!(bvh.get_closest_intersection(&ray).is_some());
 
+        let ray = Ray::new((-0.1, 0.1, 0.0).into(), (0.0, 0.0, 1.0).into());
+        assert!(bvh.get_closest_intersection(&ray).is_none());
+
         // Intersect sphere
         let ray = Ray::new((0.0, 5.25, 0.0).into(), (0.0, 0.0, 1.0).into());
         assert!(bvh.get_closest_intersection(&ray).is_some());
+
+        let ray = Ray::new((0.0, 5.55, 0.0).into(), (0.0, 0.0, 1.0).into());
+        assert!(bvh.get_closest_intersection(&ray).is_none());
 
         // Intersect quad
         let ray = Ray::new((0.0, 0.0, 0.0).into(), (0.0, -1.0, 0.0).into());
@@ -254,5 +298,8 @@ mod tests {
 
         let ray = Ray::new((0.0, 0.0, 0.0).into(), (0.1, -5.0, -0.1).into());
         assert!(bvh.get_closest_intersection(&ray).is_some());
+
+        let ray = Ray::new((2.0, 0.0, 0.0).into(), (0.0, -1.0, 0.0).into());
+        assert!(bvh.get_closest_intersection(&ray).is_none());
     }
 }

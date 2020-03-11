@@ -17,14 +17,15 @@ pub fn reflect(v: Vector3<f32>, normal: Vector3<f32>) -> Vector3<f32> {
 }
 
 /// Returns the min and the max of each dimension for the collection of points.
-pub fn component_wise_range(points: Vec<Point3<f32>>) -> (Point3<f32>, Point3<f32>) {
-    assert!(!points.is_empty());
-    let inf = (std::f32::INFINITY, std::f32::INFINITY, std::f32::INFINITY).into();
-    points.into_iter().fold((inf, -1.0 * inf), |(min, max), v| {
-        let min = (min.x.min(v.x), min.y.min(v.y), min.z.min(v.z)).into();
-        let max = (max.x.max(v.x), max.y.max(v.y), max.z.max(v.z)).into();
-        (min, max)
-    })
+pub fn component_wise_range(mut points: Vec<Point3<f32>>) -> (Point3<f32>, Point3<f32>) {
+    let v = points.pop().expect("points cannot be empty!");
+    let min = points.iter().fold(v, |a, b| {
+        (f32::min(a.x, b.x), f32::min(a.y, b.y), f32::min(a.z, b.z)).into()
+    });
+    let max = points.iter().fold(v, |a, b| {
+        (f32::max(a.x, b.x), f32::max(a.y, b.y), f32::max(a.z, b.z)).into()
+    });
+    (min, max)
 }
 
 #[cfg(test)]

@@ -278,7 +278,7 @@ impl Object {
     /// Return the axis-aligned minimum bounding box for this object
     /// in world space coordinates.
     pub fn get_bounding_box(&self) -> (Point3<f32>, Point3<f32>) {
-        let object_to_world = self.world_to_object.invert().unwrap();
+        let object_to_world = self.get_object_to_world();
         match self.object_type {
             ObjectType::Sphere(center, radius) => {
                 let center = object_to_world.transform_point(center);
@@ -286,8 +286,20 @@ impl Object {
                 let radius: Vector3<f32> = (radius, radius, radius).into();
                 (center - radius, center + radius)
             }
-            ObjectType::Quad(a, b, c, d) => component_wise_range(vec![a, b, c, d]),
-            ObjectType::Triangle(a, b, c) => component_wise_range(vec![a, b, c]),
+            ObjectType::Quad(a, b, c, d) => {
+                let points = vec![a, b, c, d]
+                    .into_iter()
+                    .map(|point| object_to_world.transform_point(point))
+                    .collect();
+                component_wise_range(points)
+            }
+            ObjectType::Triangle(a, b, c) => {
+                let points = vec![a, b, c]
+                    .into_iter()
+                    .map(|point| object_to_world.transform_point(point))
+                    .collect();
+                component_wise_range(points)
+            }
         }
     }
 }
