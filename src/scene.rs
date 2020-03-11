@@ -1,5 +1,6 @@
 use cgmath::{Deg, Matrix4, SquareMatrix};
-use rand::Rng;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 
 use super::camera::Camera;
 use super::color::Color;
@@ -90,7 +91,7 @@ pub fn load_random_spheres(world: &mut World, num_spheres: u16) {
     );
     world.add_object(object);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = StdRng::seed_from_u64(248);
     for _ in 0..num_spheres {
         let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
         let r: f32 = rng.gen_range(0.2, 1.);

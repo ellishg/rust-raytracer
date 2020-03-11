@@ -64,7 +64,12 @@ impl World {
                         let rgb_sum = (0..samples_per_pixel)
                             .into_iter()
                             .map(|_| {
-                                let ray = self.camera.generate_ray(x, y, &mut self.rng);
+                                let rng = if samples_per_pixel == 1 {
+                                    None
+                                } else {
+                                    Some(&mut self.rng)
+                                };
+                                let ray = self.camera.generate_ray(x, y, rng);
                                 let color = self.trace_ray(&bvh, &ray);
                                 color.to_vec()
                             })
