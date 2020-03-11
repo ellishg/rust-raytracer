@@ -35,4 +35,13 @@ impl Ray {
     pub fn get_direction(&self) -> Vector3<f32> {
         self.direction
     }
+
+    /// Move the ray forward by `epsilon` units.
+    ///
+    /// Useful if we want to make sure that the new ray does not
+    /// intersect an object at its origin.
+    pub fn offset(self, epsilon: f32) -> Ray {
+        let position = self.position + epsilon * self.direction;
+        Ray::new(position, self.direction)
+    }
 }

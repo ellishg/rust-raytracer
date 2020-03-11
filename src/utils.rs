@@ -16,6 +16,21 @@ pub fn reflect(v: Vector3<f32>, normal: Vector3<f32>) -> Vector3<f32> {
     (v - 2.0 * v.dot(normal) * normal).normalize()
 }
 
+pub fn refract(v: Vector3<f32>, normal: Vector3<f32>, refraction_index: f32) -> Vector3<f32> {
+    // The refraction index for air is about 1.0.
+    let n = if v.dot(normal) <= 0.0 {
+        // Ray is entering surface.
+        1.0 / refraction_index
+    } else {
+        // Ray is exiting surface.
+        refraction_index / 1.0
+    };
+    // Snell's Law.
+    let cos_theta_in = v.dot(normal).abs();
+    let cos_theta_out = (1.0 - n.powf(2.0) * (1.0 - cos_theta_in.powf(2.0))).sqrt();
+    (v * n + (n * cos_theta_in - cos_theta_out) * normal).normalize()
+}
+
 #[cfg(test)]
 mod tests {
     use super::{clamp, reflect};
