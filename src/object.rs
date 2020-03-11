@@ -8,6 +8,7 @@ use super::color::Color;
 use super::light::Light;
 use super::material::Material;
 use super::ray::Ray;
+use super::utils::component_wise_range;
 use super::world::World;
 
 enum ObjectType {
@@ -229,7 +230,7 @@ impl Object {
     /// All arguments are in world space coordinates.
     pub fn get_color(
         &self,
-        incoming_ray: Ray,
+        incoming_ray: &Ray,
         t: f32,
         lights: Vec<&Light>,
         world: &World,
@@ -285,29 +286,8 @@ impl Object {
                 let radius: Vector3<f32> = (radius, radius, radius).into();
                 (center - radius, center + radius)
             }
-            ObjectType::Quad(a, b, c, d) => {
-                let inf = (std::f32::INFINITY, std::f32::INFINITY, std::f32::INFINITY).into();
-                // Find the min/max of each component over all points.
-                vec![a, b, c, d]
-                    .into_iter()
-                    .map(|v| object_to_world.transform_point(v))
-                    .fold((inf, -1.0 * inf), |(min, max), v| {
-                        let min = (min.x.min(v.x), min.y.min(v.y), min.z.min(v.z)).into();
-                        let max = (max.x.max(v.x), max.y.max(v.y), max.z.max(v.z)).into();
-                        (min, max)
-                    })
-            }
-            ObjectType::Triangle(a, b, c) => {
-                let inf = (std::f32::INFINITY, std::f32::INFINITY, std::f32::INFINITY).into();
-                vec![a, b, c]
-                    .into_iter()
-                    .map(|v| object_to_world.transform_point(v))
-                    .fold((inf, -1.0 * inf), |(min, max), v| {
-                        let min = (min.x.min(v.x), min.y.min(v.y), min.z.min(v.z)).into();
-                        let max = (max.x.max(v.x), max.y.max(v.y), max.z.max(v.z)).into();
-                        (min, max)
-                    })
-            }
+            ObjectType::Quad(a, b, c, d) => component_wise_range(vec![a, b, c, d]),
+            ObjectType::Triangle(a, b, c) => component_wise_range(vec![a, b, c]),
         }
     }
 }

@@ -50,6 +50,10 @@ impl World {
         assert!(samples_per_pixel != 0);
         let instant = time::Instant::now();
 
+        // Take ownership of `objects` away from `self`.
+        let mut objects: Vec<_> = self.objects.drain(..).collect();
+        let bvh = Bvh::new(objects.iter().collect(), 5);
+
         // TODO: Make this multi-threaded.
         let pixels: Vec<Vec<Color>> = (0..self.camera.width)
             .into_iter()
@@ -61,7 +65,7 @@ impl World {
                             .into_iter()
                             .map(|_| {
                                 let ray = self.camera.generate_ray(x, y, &mut self.rng);
-                                let color = self.trace_ray(ray);
+                                let color = self.trace_ray(&bvh, &ray);
                                 color.to_vec()
                             })
                             .fold(Vector4::new(0., 0., 0., 0.), |acc, x| acc + x);
@@ -78,6 +82,9 @@ impl World {
         });
         image.save(path)?;
 
+        // Give ownership of `objects` back to `self`.
+        self.objects = objects.drain(..).collect();
+
         debug!(
             "Rendered image in {} seconds.",
             instant.elapsed().as_seconds_f32()
@@ -85,12 +92,7 @@ impl World {
         Ok(())
     }
 
-    fn trace_ray(&self, ray: Ray) -> Color {
-        // TODO: Scene should give these values.
-        let min = (-10.0, -10.0, -10.0).into();
-        let max = (10.0, 10.0, 10.0).into();
-        let bvh = Bvh::new(&self.objects, min, max, 10);
-
+    fn trace_ray(&self, bvh: &Bvh, ray: &Ray) -> Color {
         if let Some((object, t)) = bvh.get_closest_intersection(&ray) {
             // Compute the color of the object that the ray first hits.
             let intersection_point: Point3<f32> = ray.get_point_on_ray(t).into();
@@ -112,7 +114,7 @@ impl World {
                     true
                 })
                 .collect();
-            object.get_color(ray, t, illuminating_lights, self)
+            object.get_color(&ray, t, illuminating_lights, self)
         } else {
             // If the ray hits nothing, return the background color.
             self.background_color

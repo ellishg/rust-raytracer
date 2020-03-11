@@ -105,7 +105,7 @@ impl Material {
     /// All arguments are in world space coordinates.
     pub fn get_color(
         &self,
-        incoming_ray: Ray,
+        incoming_ray: &Ray,
         t: f32,
         object: &Object,
         lights: Vec<&Light>,

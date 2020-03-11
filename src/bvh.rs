@@ -1,7 +1,7 @@
 use super::object::Object;
 use super::ray::Ray;
-use cgmath::ElementWise;
-use cgmath::{Point3, Vector3};
+use super::utils::component_wise_range;
+use cgmath::Point3;
 
 /// Bounding Volume Hierarchy
 pub struct Bvh<'a> {
@@ -9,20 +9,15 @@ pub struct Bvh<'a> {
 }
 
 impl<'a> Bvh<'a> {
-    pub fn new(
-        objects: &'a Vec<Object>,
-        min: Point3<f32>,
-        max: Point3<f32>,
-        leaf_size: usize,
-    ) -> Self {
-        let objects: Vec<(&'a Object, AABB)> = objects
-            .iter()
-            .map(|object| {
-                let (min, max) = object.get_bounding_box();
-                (object, AABB::new(min, max))
-            })
-            .collect();
-        let bvh_tree = BvhTree::new(objects, AABB::new(min, max), leaf_size);
+    pub fn new(objects: Vec<&'a Object>, leaf_size: usize) -> Self {
+        let num_objects = objects.len();
+        let bvh_tree = BvhTree::new(objects, leaf_size);
+        assert_eq!(bvh_tree.get_num_objects(), num_objects);
+        debug!(
+            "Generated a bvh tree of {} objects with depth {}",
+            bvh_tree.get_num_objects(),
+            bvh_tree.get_depth()
+        );
         Bvh { bvh_tree }
     }
 
@@ -51,19 +46,12 @@ impl AABB {
         AABB { min, max }
     }
 
-    /// Returns the list of objects that can be found inside this bounding box.
-    fn filter_objects<'a>(&self, objects: Vec<(&'a Object, AABB)>) -> Vec<(&'a Object, AABB)> {
-        objects
-            .into_iter()
-            .filter(|(_, object_bounding_box)| {
-                self.contains_point(object_bounding_box.min)
-                    || self.contains_point(object_bounding_box.max)
-            })
-            .collect()
-    }
-
     /// Returns `true` if `ray` intersects this bounding box.
     fn intersects(&self, ray: &Ray) -> bool {
+        // FIXME: This function needs to be fixed.
+        // Was following
+        // https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
+        // but it looks like I have a bug.
         // TODO: Return Some(t) instead of true.
         let aux = |min: f32, max: f32, x: f32, slope: f32| {
             if slope == 0.0 {
@@ -95,42 +83,17 @@ impl AABB {
         }
     }
 
-    /// Returns true if this bounding box contains `point`.
-    fn contains_point(&self, point: Point3<f32>) -> bool {
-        self.min.x <= point.x
-            && point.x <= self.max.x
-            && self.min.y <= point.y
-            && point.y <= self.max.y
-            && self.min.z <= point.z
-            && point.z <= self.max.z
-    }
-
     /// Return the union of all the bounding boxes.
-    ///
-    /// Bounds of infinite size are ignored.
-    fn union(aabbs: Vec<&AABB>) -> Self {
+    fn union(aabbs: Vec<AABB>) -> Self {
         if aabbs.is_empty() {
             let zero = (0.0, 0.0, 0.0).into();
             AABB::new(zero, zero)
         } else {
-            let cmp = |a: &f32, b: &f32| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal);
-
-            let x_values = aabbs.iter().flat_map(|aabb| vec![aabb.min.x, aabb.max.x]);
-            let x_values = x_values.filter(|v| v.is_finite());
-            let y_values = aabbs.iter().flat_map(|aabb| vec![aabb.min.y, aabb.max.y]);
-            let y_values = y_values.filter(|v| v.is_finite());
-            let z_values = aabbs.iter().flat_map(|aabb| vec![aabb.min.z, aabb.max.z]);
-            let z_values = z_values.filter(|v| v.is_finite());
-
-            let min_x = x_values.clone().min_by(|a, b| cmp(a, b)).unwrap();
-            let min_y = y_values.clone().min_by(|a, b| cmp(a, b)).unwrap();
-            let min_z = z_values.clone().min_by(|a, b| cmp(a, b)).unwrap();
-            let max_x = x_values.max_by(|a, b| cmp(a, b)).unwrap();
-            let max_y = y_values.max_by(|a, b| cmp(a, b)).unwrap();
-            let max_z = z_values.max_by(|a, b| cmp(a, b)).unwrap();
-
-            let min = (min_x, min_y, min_z).into();
-            let max = (max_x, max_y, max_z).into();
+            let points = aabbs
+                .iter()
+                .flat_map(|aabb| vec![aabb.min, aabb.max])
+                .collect();
+            let (min, max) = component_wise_range(points);
             AABB::new(min, max)
         }
     }
@@ -139,45 +102,31 @@ impl AABB {
 enum BvhTree<'a> {
     Node(AABB, Box<BvhTree<'a>>, Box<BvhTree<'a>>),
     Leaf(AABB, Vec<&'a Object>),
-    Empty,
 }
 
 impl<'a> BvhTree<'a> {
-    fn new(objects: Vec<(&'a Object, AABB)>, aabb: AABB, leaf_size: usize) -> Self {
-        let objects = aabb.filter_objects(objects);
-        if objects.is_empty() {
-            BvhTree::Empty
-        } else if objects.len() <= leaf_size {
-            let objects = objects.into_iter().map(|(object, _)| object).collect();
+    fn new(objects: Vec<&'a Object>, leaf_size: usize) -> Self {
+        if objects.len() <= leaf_size {
+            let aabbs = objects
+                .iter()
+                .map(|object| {
+                    let (min, max) = object.get_bounding_box();
+                    AABB::new(min, max)
+                })
+                .collect();
+            let aabb = AABB::union(aabbs);
             BvhTree::Leaf(aabb, objects)
         } else {
-            let aabb = AABB::union(objects.iter().map(|(_, aabb)| aabb).collect());
+            // TODO: Partition objects in a smarter way.
+            let mid = objects.len() / 2;
+            let (left_objects, right_objects) = objects.split_at(mid);
 
-            // Split the bounding box into two parts along its largest dimension.
-            // TODO: Find a better way to separate objects into regions.
-            let diagonal = aabb.max - aabb.min;
-            let offset = if diagonal.x > diagonal.y && diagonal.x > diagonal.z {
-                diagonal.mul_element_wise(Vector3::new(0.5, 0.0, 0.0))
-            } else if diagonal.y > diagonal.x && diagonal.y > diagonal.z {
-                diagonal.mul_element_wise(Vector3::new(0.0, 0.5, 0.0))
-            } else {
-                diagonal.mul_element_wise(Vector3::new(0.0, 0.0, 0.5))
-            };
+            let left = BvhTree::new(left_objects.to_vec(), leaf_size);
+            let right = BvhTree::new(right_objects.to_vec(), leaf_size);
 
-            let left = AABB {
-                min: aabb.min,
-                max: aabb.min + offset,
-            };
-            let right = AABB {
-                min: aabb.max - offset,
-                max: aabb.max,
-            };
+            let aabb = AABB::union(vec![left.get_aabb(), right.get_aabb()]);
 
-            BvhTree::Node(
-                aabb,
-                Box::new(BvhTree::new(objects.clone(), left, leaf_size)),
-                Box::new(BvhTree::new(objects, right, leaf_size)),
-            )
+            BvhTree::Node(aabb, Box::new(left), Box::new(right))
         }
     }
 
@@ -216,7 +165,27 @@ impl<'a> BvhTree<'a> {
                     None
                 }
             }
-            BvhTree::Empty => None,
+        }
+    }
+
+    fn get_aabb(&self) -> AABB {
+        match self {
+            BvhTree::Node(aabb, _, _) => *aabb,
+            BvhTree::Leaf(aabb, _) => *aabb,
+        }
+    }
+
+    fn get_depth(&self) -> usize {
+        match self {
+            BvhTree::Node(_, left, right) => 1 + left.get_depth().max(right.get_depth()),
+            BvhTree::Leaf(_, _) => 0,
+        }
+    }
+
+    fn get_num_objects(&self) -> usize {
+        match self {
+            BvhTree::Node(_, left, right) => left.get_num_objects() + right.get_num_objects(),
+            BvhTree::Leaf(_, objects) => objects.len(),
         }
     }
 }
@@ -248,28 +217,8 @@ mod tests {
     }
 
     #[test]
-    fn test_aabb_contains() {
-        let min = (-1.0, -1.0, 10.0).into();
-        let max = (1.0, 1.0, 11.0).into();
-        let aabb0 = AABB::new(min, max);
-
-        let min = (-1.5, -1.5, 9.0).into();
-        let max = (1.0, 1.0, 12.0).into();
-        let aabb1 = AABB::new(min, max);
-
-        let aabb = AABB::union(vec![&aabb0, &aabb1]);
-
-        assert!(aabb.contains_point((0.0, 0.0, 10.0).into()));
-        assert!(aabb.contains_point((1.0, 1.0, 12.0).into()));
-        assert!(aabb.contains_point((-1.5, -1.5, 12.0).into()));
-        assert!(!aabb.contains_point((1.5, 1.0, 12.0).into()));
-    }
-
-    #[test]
     fn test_bvh_intersect() {
-        let min = (-100.0, -100.0, -100.0).into();
-        let max = (100.0, 100.0, 100.0).into();
-        let leaf_size = 10;
+        let leaf_size = 1;
         let m = Material::new(MaterialType::None, TextureType::None);
         let triangle = Object::new_triangle(
             (0.0, 0.0, 1.0).into(),
@@ -285,8 +234,8 @@ mod tests {
             (0.0, -5.0, -1.0).into(),
             m.clone(),
         );
-        let objects = vec![triangle, sphere, quad];
-        let bvh = Bvh::new(&objects, min, max, leaf_size);
+        let objects = vec![&triangle, &sphere, &quad];
+        let bvh = Bvh::new(objects, leaf_size);
 
         let ray = Ray::new((-1.0, 0.0, 0.0).into(), (-1.0, 0.0, 1.0).into());
         assert!(bvh.get_closest_intersection(&ray).is_none());
