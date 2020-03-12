@@ -18,6 +18,7 @@
   - [x] Plane
   - [x] Triangle
   - [x] Triangle Meshes
+    - [x] BVH
 - Materials
   - [x] Flat
   - [x] Phong

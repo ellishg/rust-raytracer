@@ -36,30 +36,30 @@ pub fn load_basic(world: &mut World) -> () {
     let object = object.transform(object_to_world);
     world.add_object(object);
 
-    // Create a mirror sphere
-    let mirror = MaterialType::Reflective;
-    let phong = MaterialType::new_phong(0.4, 0.6, 1.8);
-    let material_type = MaterialType::Composition(vec![(mirror, 0.4), (phong, 0.6)]);
-    let color = TextureType::new_flat(Color::blue());
-    let object = Object::new_sphere(
-        (-1.0, 0.0, 0.0).into(),
-        1.0,
-        Material::new(material_type, color),
-    );
-    world.add_object(object);
+    // // Create a mirror sphere
+    // let mirror = MaterialType::Reflective;
+    // let phong = MaterialType::new_phong(0.4, 0.6, 1.8);
+    // let material_type = MaterialType::Composition(vec![(mirror, 0.4), (phong, 0.6)]);
+    // let color = TextureType::new_flat(Color::blue());
+    // let object = Object::new_sphere(
+    //     (-1.0, 0.0, 0.0).into(),
+    //     1.0,
+    //     Material::new(material_type, color),
+    // );
+    // world.add_object(object);
 
-    // Create a transparent sphere
-    // The index of refraction for glass is about 1.69.
-    let transparent = MaterialType::Refractive(1.3);
-    let phong = MaterialType::new_phong(0.4, 0.6, 1.8);
-    let material_type = MaterialType::Composition(vec![(transparent, 0.8), (phong, 0.2)]);
-    let color = TextureType::new_flat(Color::green());
-    let object = Object::new_sphere(
-        (1.0, -0.25, 1.0).into(),
-        0.75,
-        Material::new(material_type, color),
-    );
-    world.add_object(object);
+    // // Create a transparent sphere
+    // // The index of refraction for glass is about 1.69.
+    // let transparent = MaterialType::Refractive(1.3);
+    // let phong = MaterialType::new_phong(0.4, 0.6, 1.8);
+    // let material_type = MaterialType::Composition(vec![(transparent, 0.8), (phong, 0.2)]);
+    // let color = TextureType::new_flat(Color::green());
+    // let object = Object::new_sphere(
+    //     (1.0, -0.25, 1.0).into(),
+    //     0.75,
+    //     Material::new(material_type, color),
+    // );
+    // world.add_object(object);
 
     // Create a yellow triangle.
     let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
@@ -141,6 +141,7 @@ pub fn load_random_spheres(world: &mut World, num_spheres: u16) {
 }
 
 pub fn load_suzanne(world: &mut World) {
+    let mirror = MaterialType::Reflective;
     let phong = MaterialType::new_phong(0.2, 0.8, 1.0);
     let color = TextureType::new_flat(Color::red());
     let translation = Matrix4::from_translation((0.0, 0.0, 0.0).into());
@@ -152,7 +153,10 @@ pub fn load_suzanne(world: &mut World) {
     let mesh = Object::new_mesh(
         "media/Suzanne.obj",
         object_to_world,
-        Material::new(phong, color),
+        Material::new(
+            MaterialType::Composition(vec![(mirror, 0.6), (phong, 0.4)]),
+            color,
+        ),
     )
     .unwrap();
     for triangle in mesh {

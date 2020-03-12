@@ -3,6 +3,7 @@ use image;
 use std::error::Error;
 use std::rc::Rc;
 
+use super::bvh::Bvh;
 use super::color::Color;
 use super::light::Light;
 use super::object::Object;
@@ -104,6 +105,7 @@ impl MaterialType {
         t: f32,
         object: &Object,
         lights: Vec<&Light>,
+        bvh: &Bvh,
         world: &World,
         max_depth: usize,
     ) -> Color {
@@ -118,6 +120,7 @@ impl MaterialType {
                             t,
                             object,
                             lights.clone(),
+                            bvh,
                             world,
                             max_depth,
                         )
@@ -161,7 +164,7 @@ impl MaterialType {
                 let reflected_ray = Ray::new(intersection_point, reflection_direction);
                 // We move the ray forward slightly so that we don't intersect the same location.
                 let reflected_ray = reflected_ray.offset(1e-4);
-                world.trace_ray(reflected_ray, max_depth)
+                world.trace_ray(bvh, &reflected_ray, max_depth)
             }
             MaterialType::Refractive(refraction_index) => {
                 let intersection_point = incoming_ray.get_point_on_ray(t).into();
@@ -171,7 +174,7 @@ impl MaterialType {
                 let refracted_ray = Ray::new(intersection_point, refraction_direction);
                 // We move the ray forward slightly so that we don't intersect the same location.
                 let refracted_ray = refracted_ray.offset(1e-4);
-                world.trace_ray(refracted_ray, max_depth)
+                world.trace_ray(bvh, &refracted_ray, max_depth)
             }
             MaterialType::None => Color::rgb(0.5, 0.5, 0.5),
         }
@@ -191,10 +194,11 @@ impl Material {
     /// All arguments are in world space coordinates.
     pub fn get_color(
         &self,
-        incoming_ray: Ray,
+        incoming_ray: &Ray,
         t: f32,
         object: &Object,
         lights: Vec<&Light>,
+        bvh: &Bvh,
         world: &World,
         max_depth: usize,
     ) -> Color {
@@ -206,6 +210,7 @@ impl Material {
             t,
             object,
             lights,
+            bvh,
             world,
             max_depth,
         )

@@ -1,7 +1,7 @@
 use cgmath::{InnerSpace, Transform};
 use cgmath::{Matrix4, Point3, Vector3};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Ray {
     position: Point3<f32>,
     direction: Vector3<f32>,

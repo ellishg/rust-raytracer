@@ -4,10 +4,12 @@ use obj;
 use std::error::Error;
 use std::path::Path;
 
+use super::bvh::Bvh;
 use super::color::Color;
 use super::light::Light;
 use super::material::Material;
 use super::ray::Ray;
+use super::utils::{component_wise_range, get_axis_scaling};
 use super::world::World;
 
 enum ObjectType {
@@ -132,7 +134,7 @@ impl Object {
     /// intersection point is at `ray.get_point_on_ray(t)`.
     ///
     /// Both `ray` and `t` are in world space coordinates.
-    pub fn get_intersection(&self, ray: Ray) -> Option<f32> {
+    pub fn get_intersection(&self, ray: &Ray) -> Option<f32> {
         let object_space_ray = ray.transform_using(self.get_world_to_object());
         let position: Point3<f32> = object_space_ray.get_point_on_ray(0.0).into();
         let direction = object_space_ray.get_direction();
@@ -229,14 +231,15 @@ impl Object {
     /// All arguments are in world space coordinates.
     pub fn get_color(
         &self,
-        incoming_ray: Ray,
+        incoming_ray: &Ray,
         t: f32,
         lights: Vec<&Light>,
+        bvh: &Bvh,
         world: &World,
         max_depth: usize,
     ) -> Color {
         self.material
-            .get_color(incoming_ray, t, self, lights, world, max_depth)
+            .get_color(&incoming_ray, t, self, lights, bvh, world, max_depth)
     }
 
     /// Returns the uv texture coordinates of the object at `point`.
@@ -274,6 +277,33 @@ impl Object {
     fn get_world_to_object(&self) -> &Matrix4<f32> {
         &self.world_to_object
     }
+
+    /// Return the axis-aligned minimum bounding box for this object
+    /// in world space coordinates.
+    pub fn get_bounding_box(&self) -> (Point3<f32>, Point3<f32>) {
+        let object_to_world = self.get_object_to_world();
+        match self.object_type {
+            ObjectType::Sphere(center, radius) => {
+                let center = object_to_world.transform_point(center);
+                let radius: Vector3<f32> = radius * get_axis_scaling(object_to_world);
+                (center - radius, center + radius)
+            }
+            ObjectType::Quad(a, b, c, d) => {
+                let points = vec![a, b, c, d]
+                    .into_iter()
+                    .map(|point| object_to_world.transform_point(point))
+                    .collect();
+                component_wise_range(points)
+            }
+            ObjectType::Triangle(a, b, c) => {
+                let points = vec![a, b, c]
+                    .into_iter()
+                    .map(|point| object_to_world.transform_point(point))
+                    .collect();
+                component_wise_range(points)
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -281,21 +311,22 @@ mod tests {
     use super::Object;
     use crate::material::{Material, MaterialType, TextureType};
     use crate::ray::Ray;
+    use cgmath::{InnerSpace, Point3};
 
     #[test]
     fn test_sphere() {
         let m = Material::new(MaterialType::None, TextureType::None);
         let sphere = Object::new_sphere((1.0, 2.0, 3.0).into(), 0.25, m);
         let ray = Ray::new((0.0, 0.0, 0.0).into(), (-1.0, 0.0, 0.0).into());
-        assert!(sphere.get_intersection(ray).is_none());
+        assert!(sphere.get_intersection(&ray).is_none());
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (1.0, 1.0, 3.0).into());
-        assert!(sphere.get_intersection(ray).is_some());
+        assert!(sphere.get_intersection(&ray).is_some());
     }
 
     #[test]
     fn test_quad() {
         let m = Material::new(MaterialType::None, TextureType::None);
-        let plane = Object::new_quad(
+        let quad = Object::new_quad(
             (-1.0, 0.0, 1.0).into(),
             (1.0, 0.0, 1.0).into(),
             (1.0, 0.0, -1.0).into(),
@@ -303,13 +334,13 @@ mod tests {
             m,
         );
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (0.0, -1.0, 0.5).into());
-        assert!(plane.get_intersection(ray).is_some());
+        assert!(quad.get_intersection(&ray).is_some());
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (0.0, 1.0, 0.0).into());
-        assert!(plane.get_intersection(ray).is_none());
+        assert!(quad.get_intersection(&ray).is_none());
         let ray = Ray::new((0.0, 1.0, 0.0).into(), (0.0, 0.0, 1.0).into());
-        assert!(plane.get_intersection(ray).is_none());
+        assert!(quad.get_intersection(&ray).is_none());
         let ray = Ray::new((0.0, -1.0, 0.0).into(), (0.0, 1.0, 0.0).into());
-        assert!(plane.get_intersection(ray).is_none());
+        assert!(quad.get_intersection(&ray).is_none());
     }
 
     #[test]
@@ -322,9 +353,9 @@ mod tests {
             m.clone(),
         );
         let ray = Ray::new((0.1, 0.1, 1.0).into(), (0.0, 0.0, -1.0).into());
-        assert!(triangle.get_intersection(ray).is_some());
+        assert!(triangle.get_intersection(&ray).is_some());
         let ray = Ray::new((1.0, 1.0, -1.0).into(), (0.0, 0.0, 1.0).into());
-        assert!(triangle.get_intersection(ray).is_none());
+        assert!(triangle.get_intersection(&ray).is_none());
 
         let triangle = Object::new_triangle(
             (0.0, 0.0, 0.0).into(),
@@ -333,8 +364,38 @@ mod tests {
             m.clone(),
         );
         let ray = Ray::new((0.1, 0.1, 1.0).into(), (0.0, 0.0, -1.0).into());
-        assert!(triangle.get_intersection(ray).is_none());
+        assert!(triangle.get_intersection(&ray).is_none());
         let ray = Ray::new((1.0, 1.0, -1.0).into(), (0.0, 0.0, 1.0).into());
-        assert!(triangle.get_intersection(ray).is_none());
+        assert!(triangle.get_intersection(&ray).is_none());
+    }
+
+    #[test]
+    fn test_sphere_bounding_box() {
+        let epsilon = 1e-4;
+        let m = Material::new(MaterialType::None, TextureType::None);
+        let sphere = Object::new_sphere((2.0, 0.0, 1.0).into(), 1.5, m.clone());
+        let (a, b) = sphere.get_bounding_box();
+        let a_actual: Point3<f32> = (0.5, -1.5, -0.5).into();
+        let b_actual: Point3<f32> = (3.5, 1.5, 2.5).into();
+        assert!((a - a_actual).magnitude() < epsilon);
+        assert!((b - b_actual).magnitude() < epsilon);
+    }
+
+    #[test]
+    fn test_quad_bounding_box() {
+        let epsilon = 1e-4;
+        let m = Material::new(MaterialType::None, TextureType::None);
+        let quad = Object::new_quad(
+            (1.0, 1.0, 1.0).into(),
+            (3.0, 1.0, 1.0).into(),
+            (3.0, 1.0, 0.0).into(),
+            (1.0, 1.0, 0.0).into(),
+            m.clone(),
+        );
+        let (a, b) = quad.get_bounding_box();
+        let a_actual: Point3<f32> = (1.0, 1.0, 0.0).into();
+        let b_actual: Point3<f32> = (3.0, 1.0, 1.0).into();
+        assert!((a - a_actual).magnitude() < epsilon);
+        assert!((b - b_actual).magnitude() < epsilon);
     }
 }
