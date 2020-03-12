@@ -8,7 +8,7 @@ use super::color::Color;
 use super::light::Light;
 use super::material::Material;
 use super::ray::Ray;
-use super::utils::component_wise_range;
+use super::utils::{component_wise_range, get_axis_scaling};
 use super::world::World;
 
 enum ObjectType {
@@ -282,8 +282,7 @@ impl Object {
         match self.object_type {
             ObjectType::Sphere(center, radius) => {
                 let center = object_to_world.transform_point(center);
-                // FIXME: Radius is not affected by transformation matrix.
-                let radius: Vector3<f32> = (radius, radius, radius).into();
+                let radius: Vector3<f32> = radius * get_axis_scaling(object_to_world);
                 (center - radius, center + radius)
             }
             ObjectType::Quad(a, b, c, d) => {
