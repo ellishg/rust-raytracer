@@ -233,9 +233,10 @@ impl Object {
         t: f32,
         lights: Vec<&Light>,
         world: &World,
+        max_depth: usize,
     ) -> Color {
         self.material
-            .get_color(incoming_ray, t, self, lights, world)
+            .get_color(incoming_ray, t, self, lights, world, max_depth)
     }
 
     /// Returns the uv texture coordinates of the object at `point`.

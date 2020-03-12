@@ -7,7 +7,7 @@ use super::color::Color;
 use super::light::Light;
 use super::object::Object;
 use super::ray::Ray;
-use super::utils::{clamp, reflect};
+use super::utils::{clamp, reflect, refract};
 use super::world::World;
 
 pub enum TextureType {
@@ -18,11 +18,14 @@ pub enum TextureType {
 
 #[derive(Clone)]
 pub enum MaterialType {
+    Composition(Vec<(MaterialType, f32)>),
     Phong {
         diffuse: f32,
         specular: f32,
         shininess: f32,
     },
+    Reflective,
+    Refractive(f32),
     None,
 }
 
@@ -90,28 +93,36 @@ impl MaterialType {
             shininess,
         }
     }
-}
-
-impl Material {
-    pub fn new(material_type: MaterialType, texture_type: TextureType) -> Self {
-        Material {
-            material_type,
-            texture_type,
-        }
-    }
 
     /// Returns the color of `object` at the point given by `incoming_ray.get_point_on_ray(t)`.
     ///
     /// All arguments are in world space coordinates.
     pub fn get_color(
         &self,
-        incoming_ray: Ray,
+        surface_color: Color,
+        incoming_ray: &Ray,
         t: f32,
         object: &Object,
         lights: Vec<&Light>,
-        _world: &World,
+        world: &World,
+        max_depth: usize,
     ) -> Color {
-        match self.material_type {
+        match self {
+            MaterialType::Composition(materials) => materials
+                .iter()
+                .map(|(material, coefficient)| {
+                    *coefficient
+                        * material.get_color(
+                            surface_color,
+                            incoming_ray,
+                            t,
+                            object,
+                            lights.clone(),
+                            world,
+                            max_depth,
+                        )
+                })
+                .fold((0.0, 0.0, 0.0, 0.0).into(), |acc, x| acc + x),
             MaterialType::Phong {
                 diffuse,
                 specular,
@@ -119,7 +130,6 @@ impl Material {
             } => {
                 let intersection_point = incoming_ray.get_point_on_ray(t).into();
                 let normal = object.get_normal(intersection_point);
-                let surface_color = self.texture_type.sample(object, intersection_point);
                 lights
                     .iter()
                     .map(|light| {
@@ -139,12 +149,65 @@ impl Material {
                             clamp(-light_ray.get_direction().dot(normal), 0.0, 1.0);
                         surface_color
                             * (diffuse * diffuse_intensity
-                                + specular * specular_intensity.powf(shininess))
+                                + specular * specular_intensity.powf(*shininess))
                             * light_color
                     })
                     .fold((0.0, 0.0, 0.0, 0.0).into(), |acc, x| acc + x)
             }
+            MaterialType::Reflective => {
+                let intersection_point = incoming_ray.get_point_on_ray(t).into();
+                let normal = object.get_normal(intersection_point);
+                let reflection_direction = reflect(incoming_ray.get_direction(), normal);
+                let reflected_ray = Ray::new(intersection_point, reflection_direction);
+                // We move the ray forward slightly so that we don't intersect the same location.
+                let reflected_ray = reflected_ray.offset(1e-4);
+                world.trace_ray(reflected_ray, max_depth)
+            }
+            MaterialType::Refractive(refraction_index) => {
+                let intersection_point = incoming_ray.get_point_on_ray(t).into();
+                let normal = object.get_normal(intersection_point);
+                let refraction_direction =
+                    refract(incoming_ray.get_direction(), normal, *refraction_index);
+                let refracted_ray = Ray::new(intersection_point, refraction_direction);
+                // We move the ray forward slightly so that we don't intersect the same location.
+                let refracted_ray = refracted_ray.offset(1e-4);
+                world.trace_ray(refracted_ray, max_depth)
+            }
             MaterialType::None => Color::rgb(0.5, 0.5, 0.5),
         }
+    }
+}
+
+impl Material {
+    pub fn new(material_type: MaterialType, texture_type: TextureType) -> Self {
+        Material {
+            material_type,
+            texture_type,
+        }
+    }
+
+    /// Returns the color of `object` at the point given by `incoming_ray.get_point_on_ray(t)`.
+    ///
+    /// All arguments are in world space coordinates.
+    pub fn get_color(
+        &self,
+        incoming_ray: Ray,
+        t: f32,
+        object: &Object,
+        lights: Vec<&Light>,
+        world: &World,
+        max_depth: usize,
+    ) -> Color {
+        let intersection_point = incoming_ray.get_point_on_ray(t).into();
+        let surface_color = self.texture_type.sample(object, intersection_point);
+        self.material_type.get_color(
+            surface_color,
+            &incoming_ray,
+            t,
+            object,
+            lights,
+            world,
+            max_depth,
+        )
     }
 }
