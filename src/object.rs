@@ -4,6 +4,7 @@ use obj;
 use std::error::Error;
 use std::path::Path;
 
+use super::bvh::Bvh;
 use super::color::Color;
 use super::light::Light;
 use super::material::Material;
@@ -233,10 +234,12 @@ impl Object {
         incoming_ray: &Ray,
         t: f32,
         lights: Vec<&Light>,
+        bvh: &Bvh,
         world: &World,
+        max_depth: usize,
     ) -> Color {
         self.material
-            .get_color(incoming_ray, t, self, lights, world)
+            .get_color(&incoming_ray, t, self, lights, bvh, world, max_depth)
     }
 
     /// Returns the uv texture coordinates of the object at `point`.

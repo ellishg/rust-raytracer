@@ -1,4 +1,4 @@
-use cgmath::{InnerSpace, Point3, Vector3, Matrix4, Transform};
+use cgmath::{InnerSpace, Matrix4, Point3, Transform, Vector3};
 
 /// Clamps a value x to be in the range (low, high)
 // `f32.clamp` is nightly-only :(
@@ -38,14 +38,30 @@ pub fn get_axis_scaling(mat: &Matrix4<f32>) -> Vector3<f32> {
     (
         get_scaling(Vector3::unit_x()),
         get_scaling(Vector3::unit_y()),
-        get_scaling(Vector3::unit_z())
-    ).into()
+        get_scaling(Vector3::unit_z()),
+    )
+        .into()
+}
+
+pub fn refract(v: Vector3<f32>, normal: Vector3<f32>, refraction_index: f32) -> Vector3<f32> {
+    // The refraction index for air is about 1.0.
+    let n = if v.dot(normal) <= 0.0 {
+        // Ray is entering surface.
+        1.0 / refraction_index
+    } else {
+        // Ray is exiting surface.
+        refraction_index / 1.0
+    };
+    // Snell's Law.
+    let cos_theta_in = v.dot(normal).abs();
+    let cos_theta_out = (1.0 - n.powf(2.0) * (1.0 - cos_theta_in.powf(2.0))).sqrt();
+    (v * n + (n * cos_theta_in - cos_theta_out) * normal).normalize()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{clamp, reflect, component_wise_range, get_axis_scaling};
-    use cgmath::{MetricSpace, Vector3, Matrix4, Deg, assert_abs_diff_eq, Transform};
+    use super::{clamp, component_wise_range, get_axis_scaling, reflect};
+    use cgmath::{assert_abs_diff_eq, Deg, Matrix4, MetricSpace, Transform, Vector3};
 
     #[test]
     fn test_clamp() {
@@ -74,10 +90,9 @@ mod tests {
 
     #[test]
     fn test_get_scaling() {
-        let rotate =
-            Matrix4::from_angle_x(Deg(120.0)) *
-            Matrix4::from_angle_y(Deg(90.0)) *
-            Matrix4::from_angle_z(Deg(45.0));
+        let rotate = Matrix4::from_angle_x(Deg(120.0))
+            * Matrix4::from_angle_y(Deg(90.0))
+            * Matrix4::from_angle_z(Deg(45.0));
 
         let translate = Matrix4::from_translation((1.0, 0.5, -2.0).into());
         let transform = rotate * translate;

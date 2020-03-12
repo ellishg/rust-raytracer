@@ -10,18 +10,20 @@
   - [x] Point
   - [ ] Cone
   - [ ] Directional
+- Shadows
   - [ ] Soft shadows
+  - [ ] Correct shadows from transparent surfaces
 - Objects
   - [x] Sphere
   - [x] Plane
   - [x] Triangle
   - [x] Triangle Meshes
-    - [ ] BVH
+    - [x] BVH
 - Materials
   - [x] Flat
   - [x] Phong
-  - [ ] Reflective
-  - [ ] Transparent
+  - [x] Reflective
+  - [x] Transparent
   - [x] Texture
     - [ ] Super sample texture
 - Tracing

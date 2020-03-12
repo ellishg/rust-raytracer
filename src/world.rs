@@ -1,5 +1,5 @@
 use cgmath::MetricSpace;
-use cgmath::{Point3, Vector4};
+use cgmath::Vector4;
 use image;
 use std::error::Error;
 use std::path::Path;
@@ -49,6 +49,7 @@ impl World {
     {
         assert!(samples_per_pixel != 0);
         let instant = time::Instant::now();
+        let max_ray_bounces = 10;
 
         // Take ownership of `objects` away from `self`.
         let mut objects: Vec<_> = self.objects.drain(..).collect();
@@ -70,7 +71,7 @@ impl World {
                                     Some(&mut self.rng)
                                 };
                                 let ray = self.camera.generate_ray(x, y, rng);
-                                let color = self.trace_ray(&bvh, &ray);
+                                let color = self.trace_ray(&bvh, &ray, max_ray_bounces);
                                 color.to_vec()
                             })
                             .fold(Vector4::new(0., 0., 0., 0.), |acc, x| acc + x);
@@ -97,29 +98,32 @@ impl World {
         Ok(())
     }
 
-    fn trace_ray(&self, bvh: &Bvh, ray: &Ray) -> Color {
-        if let Some((object, t)) = bvh.get_closest_intersection(&ray) {
+    /// Trace a ray in the world and return the color it should produce.
+    /// `max_depth` is the maximum number of bounces we should compute for this ray.
+    pub fn trace_ray(&self, bvh: &Bvh, ray: &Ray, max_depth: usize) -> Color {
+        if max_depth == 0 {
+            self.background_color
+        } else if let Some((object, t)) = bvh.get_closest_intersection(&ray) {
             // Compute the color of the object that the ray first hits.
-            let intersection_point: Point3<f32> = ray.get_point_on_ray(t).into();
+            let intersection_point = ray.get_point_on_ray(t).into();
             let illuminating_lights = self
                 .lights
                 .iter()
                 .filter(|light| {
                     let light_ray = light.get_light_ray(intersection_point);
-                    if let Some((_, t)) = bvh.get_closest_intersection(&light_ray) {
-                        // TODO: Figure out a better way to detect shadows.
-                        // TODO: This should be in light struct.
-                        let epsilon_squared = 0.1;
-                        if intersection_point.distance2(light_ray.get_point_on_ray(t).into())
-                            > epsilon_squared
-                        {
-                            return false;
-                        }
+                    let light_to_object_t =
+                        intersection_point.distance(light_ray.get_point_on_ray(0.0).into());
+                    // TODO: Shadows don't work correctly with reflective or refractive surfaces.
+                    if let Some((_, shadow_t)) = bvh.get_closest_intersection(&light_ray) {
+                        let epsilon = 1e-4;
+                        let is_in_shadow = shadow_t + epsilon < light_to_object_t;
+                        !is_in_shadow
+                    } else {
+                        false
                     }
-                    true
                 })
                 .collect();
-            object.get_color(&ray, t, illuminating_lights, self)
+            object.get_color(&ray, t, illuminating_lights, bvh, self, max_depth - 1)
         } else {
             // If the ray hits nothing, return the background color.
             self.background_color
