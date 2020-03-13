@@ -3,7 +3,7 @@ use image;
 use std::error::Error;
 use std::path::Path;
 use std::sync::{mpsc, Arc};
-use std::thread;
+use threadpool::ThreadPool;
 use time;
 
 use super::bvh::Bvh;
@@ -22,6 +22,7 @@ pub fn render<P>(
     samples_per_pixel: u16,
     max_ray_bounces: u16,
     path: P,
+    num_threads: usize,
 ) -> Result<(), Box<dyn Error>>
 where
     P: AsRef<Path>,
@@ -34,31 +35,34 @@ where
 
     let (width, height) = (world.camera.width, world.camera.height);
 
+    let pool = ThreadPool::new(num_threads);
     let (tx, rx) = mpsc::channel();
     for x in 0..width {
         let tx = tx.clone();
         let world = Arc::clone(&world);
-        thread::spawn(move || {
-            let colors = (0..height).map(|y| {
-                let mut rng = {
-                    if samples_per_pixel == 1 {
-                        None
-                    } else {
-                        Some(rand::thread_rng())
-                    }
-                };
+        pool.execute(move || {
+            let colors = (0..height)
+                .map(|y| {
+                    let mut rng = {
+                        if samples_per_pixel == 1 {
+                            None
+                        } else {
+                            Some(rand::thread_rng())
+                        }
+                    };
 
-                let rgb_sum = (0..samples_per_pixel)
-                    .into_iter()
-                    .map(|_| {
-                        let ray = world.camera.generate_ray(x, y, rng.as_mut());
-                        let color = world.trace_ray(&ray, max_ray_bounces);
-                        color.to_vec()
-                    })
-                    .fold(Vector4::new(0., 0., 0., 0.), |acc, x| acc + x);
-                let res = rgb_sum / samples_per_pixel.into();
-                Color::rgba(res.x, res.y, res.z, res.w)
-            }).collect();
+                    let rgb_sum = (0..samples_per_pixel)
+                        .into_iter()
+                        .map(|_| {
+                            let ray = world.camera.generate_ray(x, y, rng.as_mut());
+                            let color = world.trace_ray(&ray, max_ray_bounces);
+                            color.to_vec()
+                        })
+                        .fold(Vector4::new(0., 0., 0., 0.), |acc, x| acc + x);
+                    let res = rgb_sum / samples_per_pixel.into();
+                    Color::rgba(res.x, res.y, res.z, res.w)
+                })
+                .collect();
             tx.send((x, colors)).unwrap();
         });
     }
