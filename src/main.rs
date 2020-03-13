@@ -14,13 +14,33 @@ mod world;
 
 use color::Color;
 use scene::*;
-use world::World;
+use world::render;
 
 fn main() {
     env_logger::init();
-    let mut world = World::new(default_camera(), Color::grayscale(0.2));
-    load_basic(&mut world);
-    load_suzanne(&mut world);
-    // load_random_spheres(&mut world, 30);
-    world.render("out.png", 1).unwrap();
+    let mut objects = vec![];
+    let mut lights = vec![];
+
+    let (new_objects, new_lights) = load_basic();
+    objects.extend(new_objects);
+    lights.extend(new_lights);
+
+    let (new_objects, new_lights) = load_suzanne();
+    objects.extend(new_objects);
+    lights.extend(new_lights);
+
+    // let (new_objects, new_lights) = load_random_spheres(30);
+    // objects.extend(new_objects);
+    // lights.extend(new_lights);
+
+    render(
+        default_camera(),
+        objects,
+        lights,
+        Color::grayscale(0.2),
+        1,  // samples_per_pixel
+        10, // max_ray_bounces
+        "out.png",
+    )
+    .unwrap();
 }
