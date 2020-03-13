@@ -19,6 +19,8 @@ use world::render;
 use clap::{App, Arg};
 
 fn main() {
+    // TODO: logging level as command line arg
+    // see https://docs.rs/stderrlog/0.4.3/stderrlog/#clap-example
     env_logger::init();
 
     let cl_args = App::new("Rust Ray Tracer")

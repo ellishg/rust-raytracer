@@ -101,7 +101,7 @@ impl World {
         lights: Vec<Light>,
         background_color: Color,
     ) -> World {
-        let bvh = Bvh::new(objects, 10);
+        let bvh = Bvh::new(objects, 4);
         World {
             camera,
             bvh,

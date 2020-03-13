@@ -16,9 +16,10 @@ impl Bvh {
         let bvh_tree = BvhTree::new(objects, leaf_size);
         assert_eq!(bvh_tree.get_num_objects(), num_objects);
         debug!(
-            "Generated a bvh tree of {} objects with depth {} in {} seconds.",
+            "Generated a bvh tree of {} objects with depth {} and total_sa {} in {} seconds.",
             bvh_tree.get_num_objects(),
             bvh_tree.get_depth(),
+            bvh_tree.total_sa(),
             instant.elapsed().as_seconds_f32()
         );
         Bvh { bvh_tree }
@@ -138,16 +139,24 @@ impl AABB {
             AABB::new(min, max)
         }
     }
+
+    fn surface_area(&self) -> f32 {
+        let diff = self.max - self.min;
+        2. * diff.x * diff.y +
+        2. * diff.x * diff.z +
+        2. * diff.z * diff.y
+    }
 }
 
 enum BvhTree {
-    Node(AABB, Box<BvhTree>, Box<BvhTree>),
-    Leaf(AABB, Vec<Object>),
+    Node(AABB, Box<BvhTree>, Box<BvhTree>, usize),
+    Leaf(AABB, Vec<Object>, usize),
 }
 
 impl BvhTree {
-    fn new(objects: Vec<Object>, leaf_size: usize) -> Self {
-        if objects.len() <= leaf_size {
+    fn new(mut objects: Vec<Object>, leaf_size: usize) -> Self {
+        let size = objects.len();
+        if size <= leaf_size {
             let aabbs = objects
                 .iter()
                 .map(|object| {
@@ -156,9 +165,14 @@ impl BvhTree {
                 })
                 .collect();
             let aabb = AABB::union(aabbs);
-            BvhTree::Leaf(aabb, objects)
+            BvhTree::Leaf(aabb, objects, size)
         } else {
             // TODO: Partition objects in a smarter way.
+            objects.sort_by(|a, b| {
+                let (amin, _amax) = a.get_bounding_box();
+                let (bmin, _bmax) = b.get_bounding_box();
+                amin.x.partial_cmp(&bmin.x).unwrap()
+            });
             let (left_objects, right_objects) = {
                 let mid = objects.len() / 2;
                 let mut left = objects;
@@ -166,18 +180,19 @@ impl BvhTree {
                 (left, right)
             };
 
+            let size = left_objects.len() + right_objects.len();
             let left = BvhTree::new(left_objects, leaf_size);
             let right = BvhTree::new(right_objects, leaf_size);
 
             let aabb = AABB::union(vec![left.get_aabb(), right.get_aabb()]);
 
-            BvhTree::Node(aabb, Box::new(left), Box::new(right))
+            BvhTree::Node(aabb, Box::new(left), Box::new(right), size)
         }
     }
 
     fn get_closest_intersection(&self, ray: &Ray) -> Option<(&Object, f32)> {
         match self {
-            BvhTree::Node(aabb, left, right) => {
+            BvhTree::Node(aabb, left, right, _size) => {
                 if let Some(_) = aabb.intersect(ray) {
                     [left, right]
                         .iter()
@@ -192,7 +207,7 @@ impl BvhTree {
                     None
                 }
             }
-            BvhTree::Leaf(aabb, objects) => {
+            BvhTree::Leaf(aabb, objects, _size) => {
                 if let Some(_) = aabb.intersect(ray) {
                     objects
                         .iter()
@@ -215,22 +230,34 @@ impl BvhTree {
 
     fn get_aabb(&self) -> AABB {
         match self {
-            BvhTree::Node(aabb, _, _) => *aabb,
-            BvhTree::Leaf(aabb, _) => *aabb,
+            BvhTree::Node(aabb, _, _, _) => *aabb,
+            BvhTree::Leaf(aabb, _, _) => *aabb,
         }
     }
 
     fn get_depth(&self) -> usize {
         match self {
-            BvhTree::Node(_, left, right) => 1 + left.get_depth().max(right.get_depth()),
-            BvhTree::Leaf(_, _) => 0,
+            BvhTree::Node(_, left, right, _) => 1 + left.get_depth().max(right.get_depth()),
+            BvhTree::Leaf(_, _, _) => 0,
         }
     }
 
     fn get_num_objects(&self) -> usize {
         match self {
-            BvhTree::Node(_, left, right) => left.get_num_objects() + right.get_num_objects(),
-            BvhTree::Leaf(_, objects) => objects.len(),
+            BvhTree::Node(_, _, _, size) => *size,
+            BvhTree::Leaf(_, _, size) => *size,
+        }
+    }
+
+    /// Total surface area of this bvh (recursively computed)
+    fn total_sa(&self) -> f32 {
+        match self {
+            BvhTree::Leaf(aabb, _objs, _size) => {
+                aabb.surface_area()
+            }
+            BvhTree::Node(aabb, left, right, _size) => {
+                aabb.surface_area() + left.total_sa() + right.total_sa()
+            }
         }
     }
 }
@@ -241,6 +268,14 @@ mod tests {
     use crate::material::{Material, MaterialType, TextureType};
     use crate::object::Object;
     use crate::ray::Ray;
+
+    #[test]
+    fn test_aabb_surface_area() {
+        let min = (0., 0., 0.).into();
+        let max = (1., 1., 2.).into();
+        let aabb = AABB::new(min, max);
+        assert_eq!(aabb.surface_area(), 10.);
+    }
 
     #[test]
     fn test_aabb_intersect() {
