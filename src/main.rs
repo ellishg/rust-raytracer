@@ -16,7 +16,7 @@ use color::Color;
 use scene::*;
 use world::render;
 
-use clap::{Arg, App};
+use clap::{App, Arg};
 
 fn main() {
     env_logger::init();
@@ -24,32 +24,40 @@ fn main() {
     let cl_args = App::new("Rust Ray Tracer")
         .version("0.1")
         .author("Ellis Hoag <ellis.sparky.hoag@gmail.com>, Leo Mehr <leomehr@stanford.edu>")
-        .arg(Arg::with_name("file")
-            .short("f")
-            .long("file")
-            .value_name("FILE")
-            .help("File to save rendered image as .png")
-            .required(false)
-            .default_value("out.png")
-            .takes_value(true))
-        .arg(Arg::with_name("threads")
-            .short("t")
-            .long("threads")
-            .help("Number of threads to use")
-            .required(false)
-            .default_value("4"))
-        .arg(Arg::with_name("samples_per_pixel")
-            .short("s")
-            .long("samples_per_pixel")
-            .help("Number of rays to cast per pixel")
-            .required(false)
-            .default_value("1"))
-        .arg(Arg::with_name("max_ray_bounces")
-            .short("b")
-            .long("max_ray_bounces")
-            .help("Max number of times to bounce a ray. Used for reflection and refraction.")
-            .required(false)
-            .default_value("10"))
+        .arg(
+            Arg::with_name("file")
+                .short("f")
+                .long("file")
+                .value_name("FILE")
+                .help("File to save rendered image as .png")
+                .required(false)
+                .default_value("out.png")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("threads")
+                .short("t")
+                .long("threads")
+                .help("Number of threads to use")
+                .required(false)
+                .default_value("4"),
+        )
+        .arg(
+            Arg::with_name("samples_per_pixel")
+                .short("s")
+                .long("samples_per_pixel")
+                .help("Number of rays to cast per pixel")
+                .required(false)
+                .default_value("1"),
+        )
+        .arg(
+            Arg::with_name("max_ray_bounces")
+                .short("b")
+                .long("max_ray_bounces")
+                .help("Max number of times to bounce a ray. Used for reflection and refraction.")
+                .required(false)
+                .default_value("10"),
+        )
         .get_matches();
 
     let mut objects = vec![];
@@ -67,8 +75,16 @@ fn main() {
     // objects.extend(new_objects);
     // lights.extend(new_lights);
 
-    let samples_per_pixel = cl_args.value_of("samples_per_pixel").unwrap().parse().unwrap();
-    let max_ray_bounces = cl_args.value_of("max_ray_bounces").unwrap().parse().unwrap();
+    let samples_per_pixel = cl_args
+        .value_of("samples_per_pixel")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let max_ray_bounces = cl_args
+        .value_of("max_ray_bounces")
+        .unwrap()
+        .parse()
+        .unwrap();
     let num_threads = cl_args.value_of("threads").unwrap().parse().unwrap();
 
     render(
@@ -79,7 +95,7 @@ fn main() {
         samples_per_pixel,
         max_ray_bounces,
         cl_args.value_of("file").unwrap(),
-        num_threads
+        num_threads,
     )
     .unwrap();
 }
