@@ -7,9 +7,11 @@ use super::color::Color;
 use super::light::Light;
 use super::material::{Material, MaterialType, TextureType};
 use super::object::Object;
-use super::world::World;
 
-pub fn load_basic(world: &mut World) -> () {
+pub fn load_basic() -> (Vec<Object>, Vec<Light>) {
+    let mut objects = vec![];
+    let mut lights = vec![];
+
     let texture = TextureType::new_texture("media/texture.png").unwrap();
 
     // Create a textured plane.
@@ -21,7 +23,7 @@ pub fn load_basic(world: &mut World) -> () {
         (-5.0, -1.0, -5.0).into(),
         Material::new(phong, texture.clone()),
     );
-    world.add_object(object);
+    objects.push(object);
 
     // Create a textured sphere.
     let phong = MaterialType::new_phong(0.4, 0.6, 1.8);
@@ -34,7 +36,7 @@ pub fn load_basic(world: &mut World) -> () {
     let translate = Matrix4::from_translation((1.0, 0.5, -2.0).into());
     let object_to_world = translate * rotate * translate.invert().unwrap();
     let object = object.transform(object_to_world);
-    world.add_object(object);
+    objects.push(object);
 
     // // Create a mirror sphere
     // let mirror = MaterialType::Reflective;
@@ -46,20 +48,20 @@ pub fn load_basic(world: &mut World) -> () {
     //     1.0,
     //     Material::new(material_type, color),
     // );
-    // world.add_object(object);
+    // objects.push(object);
 
-    // // Create a transparent sphere
-    // // The index of refraction for glass is about 1.69.
-    // let transparent = MaterialType::Refractive(1.3);
-    // let phong = MaterialType::new_phong(0.4, 0.6, 1.8);
-    // let material_type = MaterialType::Composition(vec![(transparent, 0.8), (phong, 0.2)]);
-    // let color = TextureType::new_flat(Color::green());
-    // let object = Object::new_sphere(
-    //     (1.0, -0.25, 1.0).into(),
-    //     0.75,
-    //     Material::new(material_type, color),
-    // );
-    // world.add_object(object);
+    // Create a transparent sphere
+    // The index of refraction for glass is about 1.69.
+    let transparent = MaterialType::Refractive(1.3);
+    let phong = MaterialType::new_phong(0.4, 0.6, 1.8);
+    let material_type = MaterialType::Composition(vec![(transparent, 0.8), (phong, 0.2)]);
+    let color = TextureType::new_flat(Color::green());
+    let object = Object::new_sphere(
+        (1.0, -0.25, 1.0).into(),
+        0.75,
+        Material::new(material_type, color),
+    );
+    objects.push(object);
 
     // Create a yellow triangle.
     let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
@@ -70,7 +72,7 @@ pub fn load_basic(world: &mut World) -> () {
         (-2.0, 2.0, 1.0).into(),
         Material::new(phong, color),
     );
-    world.add_object(object);
+    objects.push(object);
 
     // Create a textured triangle.
     let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
@@ -80,18 +82,23 @@ pub fn load_basic(world: &mut World) -> () {
         (0.0, 2.0, 1.0).into(),
         Material::new(phong, texture.clone()),
     );
-    world.add_object(object);
+    objects.push(object);
 
     let light = Light::new((2.0, 3.0, 0.5).into(), (1.0, 1.0, 1.0).into());
-    world.add_light(light);
+    lights.push(light);
     let light = Light::new((1.0, 2.0, 2.5).into(), (1.0, 1.0, 1.0).into());
-    world.add_light(light);
+    lights.push(light);
     let light = Light::new((-4.0, 2.0, 2.0).into(), (1.0, 1.0, 1.0).into());
-    world.add_light(light);
+    lights.push(light);
+
+    (objects, lights)
 }
 
 /// loads `num_spheres` randomly placed on a plane with a single light source
-pub fn load_random_spheres(world: &mut World, num_spheres: u16) {
+pub fn load_random_spheres(num_spheres: u16) -> (Vec<Object>, Vec<Light>) {
+    let mut objects = vec![];
+    let mut lights = vec![];
+
     // ground plane
     let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
     let color = TextureType::new_flat(Color::grayscale(0.2));
@@ -102,7 +109,7 @@ pub fn load_random_spheres(world: &mut World, num_spheres: u16) {
         (-01.0, 0.0, -10.0).into(),
         Material::new(phong, color),
     );
-    world.add_object(object);
+    objects.push(object);
 
     // back plane
     let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
@@ -114,7 +121,7 @@ pub fn load_random_spheres(world: &mut World, num_spheres: u16) {
         (-10.0, -10.0, -3.0).into(),
         Material::new(phong, color),
     );
-    world.add_object(object);
+    objects.push(object);
 
     let mut rng = StdRng::seed_from_u64(248);
     for _ in 0..num_spheres {
@@ -131,16 +138,20 @@ pub fn load_random_spheres(world: &mut World, num_spheres: u16) {
         let r: f32 = rng.gen_range(0.05, 0.2);
 
         let object = Object::new_sphere((x, y, z).into(), r, Material::new(phong, color));
-        world.add_object(object);
+        objects.push(object);
     }
 
     let light = Light::new((1.0, 2.0, 2.5).into(), (1.0, 1.0, 1.0).into());
-    world.add_light(light);
+    lights.push(light);
     let light = Light::new((-2.0, 2.0, 1.).into(), (1.0, 1.0, 1.0).into());
-    world.add_light(light);
+    lights.push(light);
+
+    (objects, lights)
 }
 
-pub fn load_suzanne(world: &mut World) {
+pub fn load_suzanne() -> (Vec<Object>, Vec<Light>) {
+    let mut objects = vec![];
+
     let mirror = MaterialType::Reflective;
     let phong = MaterialType::new_phong(0.2, 0.8, 1.0);
     let color = TextureType::new_flat(Color::red());
@@ -160,8 +171,10 @@ pub fn load_suzanne(world: &mut World) {
     )
     .unwrap();
     for triangle in mesh {
-        world.add_object(triangle);
+        objects.push(triangle);
     }
+
+    (objects, vec![])
 }
 
 pub fn default_camera() -> Camera {

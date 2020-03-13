@@ -1,9 +1,9 @@
 use cgmath::{InnerSpace, Point3};
 use image;
 use std::error::Error;
-use std::rc::Rc;
+use std::path::Path;
+use std::sync::Arc;
 
-use super::bvh::Bvh;
 use super::color::Color;
 use super::light::Light;
 use super::object::Object;
@@ -12,7 +12,7 @@ use super::utils::{clamp, reflect, refract};
 use super::world::World;
 
 pub enum TextureType {
-    Texture(Rc<image::RgbImage>),
+    Texture(Arc<image::RgbImage>),
     Flat(Color),
     None,
 }
@@ -39,11 +39,11 @@ pub struct Material {
 impl TextureType {
     pub fn new_texture<P>(path: P) -> Result<Self, Box<dyn Error>>
     where
-        P: AsRef<std::path::Path>,
+        P: AsRef<Path>,
     {
         let image = image::io::Reader::open(path)?.decode()?;
         let buf = image.to_rgb();
-        Ok(TextureType::Texture(Rc::new(buf)))
+        Ok(TextureType::Texture(Arc::new(buf)))
     }
 
     pub fn new_flat(color: Color) -> Self {
@@ -79,7 +79,7 @@ impl TextureType {
 impl Clone for TextureType {
     fn clone(&self) -> Self {
         match self {
-            TextureType::Texture(buf) => TextureType::Texture(Rc::clone(buf)),
+            TextureType::Texture(buf) => TextureType::Texture(Arc::clone(buf)),
             TextureType::Flat(color) => TextureType::Flat(*color),
             TextureType::None => TextureType::None,
         }
@@ -105,9 +105,8 @@ impl MaterialType {
         t: f32,
         object: &Object,
         lights: Vec<&Light>,
-        bvh: &Bvh,
         world: &World,
-        max_depth: usize,
+        max_depth: u16,
     ) -> Color {
         match self {
             MaterialType::Composition(materials) => materials
@@ -120,7 +119,6 @@ impl MaterialType {
                             t,
                             object,
                             lights.clone(),
-                            bvh,
                             world,
                             max_depth,
                         )
@@ -164,7 +162,7 @@ impl MaterialType {
                 let reflected_ray = Ray::new(intersection_point, reflection_direction);
                 // We move the ray forward slightly so that we don't intersect the same location.
                 let reflected_ray = reflected_ray.offset(1e-4);
-                world.trace_ray(bvh, &reflected_ray, max_depth)
+                world.trace_ray(&reflected_ray, max_depth)
             }
             MaterialType::Refractive(refraction_index) => {
                 let intersection_point = incoming_ray.get_point_on_ray(t).into();
@@ -174,7 +172,7 @@ impl MaterialType {
                 let refracted_ray = Ray::new(intersection_point, refraction_direction);
                 // We move the ray forward slightly so that we don't intersect the same location.
                 let refracted_ray = refracted_ray.offset(1e-4);
-                world.trace_ray(bvh, &refracted_ray, max_depth)
+                world.trace_ray(&refracted_ray, max_depth)
             }
             MaterialType::None => Color::rgb(0.5, 0.5, 0.5),
         }
@@ -198,9 +196,8 @@ impl Material {
         t: f32,
         object: &Object,
         lights: Vec<&Light>,
-        bvh: &Bvh,
         world: &World,
-        max_depth: usize,
+        max_depth: u16,
     ) -> Color {
         let intersection_point = incoming_ray.get_point_on_ray(t).into();
         let surface_color = self.texture_type.sample(object, intersection_point);
@@ -210,7 +207,6 @@ impl Material {
             t,
             object,
             lights,
-            bvh,
             world,
             max_depth,
         )

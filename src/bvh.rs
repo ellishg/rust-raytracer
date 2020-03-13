@@ -2,21 +2,24 @@ use super::object::Object;
 use super::ray::Ray;
 use super::utils::component_wise_range;
 use cgmath::Point3;
+use time;
 
 /// Bounding Volume Hierarchy
-pub struct Bvh<'a> {
-    bvh_tree: BvhTree<'a>,
+pub struct Bvh {
+    bvh_tree: BvhTree,
 }
 
-impl<'a> Bvh<'a> {
-    pub fn new(objects: Vec<&'a Object>, leaf_size: usize) -> Self {
+impl Bvh {
+    pub fn new(objects: Vec<Object>, leaf_size: usize) -> Self {
+        let instant = time::Instant::now();
         let num_objects = objects.len();
         let bvh_tree = BvhTree::new(objects, leaf_size);
         assert_eq!(bvh_tree.get_num_objects(), num_objects);
         debug!(
-            "Generated a bvh tree of {} objects with depth {}",
+            "Generated a bvh tree of {} objects with depth {} in {} seconds.",
             bvh_tree.get_num_objects(),
-            bvh_tree.get_depth()
+            bvh_tree.get_depth(),
+            instant.elapsed().as_seconds_f32()
         );
         Bvh { bvh_tree }
     }
@@ -137,13 +140,13 @@ impl AABB {
     }
 }
 
-enum BvhTree<'a> {
-    Node(AABB, Box<BvhTree<'a>>, Box<BvhTree<'a>>),
-    Leaf(AABB, Vec<&'a Object>),
+enum BvhTree {
+    Node(AABB, Box<BvhTree>, Box<BvhTree>),
+    Leaf(AABB, Vec<Object>),
 }
 
-impl<'a> BvhTree<'a> {
-    fn new(objects: Vec<&'a Object>, leaf_size: usize) -> Self {
+impl BvhTree {
+    fn new(objects: Vec<Object>, leaf_size: usize) -> Self {
         if objects.len() <= leaf_size {
             let aabbs = objects
                 .iter()
@@ -156,11 +159,15 @@ impl<'a> BvhTree<'a> {
             BvhTree::Leaf(aabb, objects)
         } else {
             // TODO: Partition objects in a smarter way.
-            let mid = objects.len() / 2;
-            let (left_objects, right_objects) = objects.split_at(mid);
+            let (left_objects, right_objects) = {
+                let mid = objects.len() / 2;
+                let mut left = objects;
+                let right = left.split_off(mid);
+                (left, right)
+            };
 
-            let left = BvhTree::new(left_objects.to_vec(), leaf_size);
-            let right = BvhTree::new(right_objects.to_vec(), leaf_size);
+            let left = BvhTree::new(left_objects, leaf_size);
+            let right = BvhTree::new(right_objects, leaf_size);
 
             let aabb = AABB::union(vec![left.get_aabb(), right.get_aabb()]);
 
@@ -190,7 +197,7 @@ impl<'a> BvhTree<'a> {
                     objects
                         .iter()
                         .filter_map(|object| match object.get_intersection(ray) {
-                            Some(t) => Some((*object, t)),
+                            Some(t) => Some((object, t)),
                             None => None,
                         })
                         // Just a hacky way to find the smallest t value.
@@ -302,7 +309,7 @@ mod tests {
             (0.0, -5.0, -1.0).into(),
             m.clone(),
         );
-        let objects = vec![&triangle, &sphere, &quad];
+        let objects = vec![triangle, sphere, quad];
         let bvh = Bvh::new(objects, leaf_size);
 
         let ray = Ray::new((-1.0, 0.0, 0.0).into(), (-1.0, 0.0, 1.0).into());
