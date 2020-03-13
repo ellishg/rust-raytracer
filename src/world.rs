@@ -22,6 +22,7 @@ pub fn render<P>(
     samples_per_pixel: u16,
     max_ray_bounces: u16,
     path: P,
+    num_threads: usize,
 ) -> Result<(), Box<dyn Error>>
 where
     P: AsRef<Path>,
@@ -34,7 +35,6 @@ where
 
     let (width, height) = (world.camera.width, world.camera.height);
 
-    let num_threads = 4;
     let pool = ThreadPool::new(num_threads);
     let (tx, rx) = mpsc::channel();
     for x in 0..width {
