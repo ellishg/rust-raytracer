@@ -36,11 +36,10 @@ where
 
     let (tx, rx) = mpsc::channel();
     for x in 0..width {
-        for y in 0..height {
-            let tx = tx.clone();
-            let world = Arc::clone(&world);
-
-            thread::spawn(move || {
+        let tx = tx.clone();
+        let world = Arc::clone(&world);
+        thread::spawn(move || {
+            let colors = (0..height).map(|y| {
                 let mut rng = {
                     if samples_per_pixel == 1 {
                         None
@@ -58,17 +57,16 @@ where
                     })
                     .fold(Vector4::new(0., 0., 0., 0.), |acc, x| acc + x);
                 let res = rgb_sum / samples_per_pixel.into();
-                let color = Color::rgba(res.x, res.y, res.z, res.w);
-
-                tx.send((x, y, color)).unwrap();
-            });
-        }
+                Color::rgba(res.x, res.y, res.z, res.w)
+            }).collect();
+            tx.send((x, colors)).unwrap();
+        });
     }
 
     let mut pixels = vec![vec![Color::black(); height as usize]; width as usize];
-    for _ in 0..width * height {
-        let (x, y, color) = rx.recv()?;
-        pixels[x as usize][y as usize] = color;
+    for _ in 0..width {
+        let (x, colors) = rx.recv()?;
+        pixels[x as usize] = colors;
     }
 
     let image = image::ImageBuffer::from_fn(width, height, |x, y| {
