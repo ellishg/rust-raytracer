@@ -3,8 +3,8 @@ use image;
 use std::error::Error;
 use std::path::Path;
 use std::sync::{mpsc, Arc};
-use std::thread;
 use time;
+use threadpool::ThreadPool;
 
 use super::bvh::Bvh;
 use super::camera::Camera;
@@ -34,11 +34,13 @@ where
 
     let (width, height) = (world.camera.width, world.camera.height);
 
+    let num_threads = 4;
+    let pool = ThreadPool::new(num_threads);
     let (tx, rx) = mpsc::channel();
     for x in 0..width {
         let tx = tx.clone();
         let world = Arc::clone(&world);
-        thread::spawn(move || {
+        pool.execute(move || {
             let colors = (0..height).map(|y| {
                 let mut rng = {
                     if samples_per_pixel == 1 {
