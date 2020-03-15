@@ -148,6 +148,14 @@ impl AABB {
     }
 }
 
+/// Splits objects arbitrarily into two halves
+fn bvh_split_naive(objects: Vec<Object>) -> (Vec<Object>, Vec<Object>) {
+    let mid = objects.len() / 2;
+    let mut left = objects;
+    let right = left.split_off(mid);
+    (left, right)
+}
+
 /// Splits objects into two halves after sorting by min x coordinate
 fn bvh_split_by_x_axis(mut objects: Vec<Object>) -> (Vec<Object>, Vec<Object>) {
     objects.sort_by(|a, b| {
@@ -171,7 +179,7 @@ fn bvh_split_by_widest_dim(mut objects: Vec<Object>) -> (Vec<Object>, Vec<Object
         c
     }).collect();
     let (min_c, max_c) = component_wise_range(centroids);
-    println!("min_c {:?} max_c {:?}", min_c, max_c);
+    // println!("min_c {:?} max_c {:?}", min_c, max_c);
 
     let diff = max_c - min_c;
     let mut maxdim = 0;
@@ -184,9 +192,9 @@ fn bvh_split_by_widest_dim(mut objects: Vec<Object>) -> (Vec<Object>, Vec<Object
         max = diff.z;
         maxdim = 2;
     }
-    let max_axis_midpoint: f32 = (max_c[maxdim] - min_c[maxdim]) / 2.;
+    let max_axis_midpoint: f32 = (max_c[maxdim] + min_c[maxdim]) / 2.;
 
-    println!("max {} maxdim {} midpoint {}", max, maxdim, max_axis_midpoint);
+    // println!("max {} maxdim {} midpoint {}", max, maxdim, max_axis_midpoint);
     let (left, right) = objects.drain(..).partition(|obj| {
         let (min, max) = obj.get_bounding_box();
         let c = Point3::centroid(&[min, max]);
@@ -222,6 +230,7 @@ impl BvhTree {
             let aabb = AABB::union(aabbs);
             BvhTree::Leaf(aabb, objects, size)
         } else {
+            // let (left_objects, right_objects) = bvh_split_naive(objects);
             // let (left_objects, right_objects) = bvh_split_by_x_axis(objects);
             let (left_objects, right_objects) = bvh_split_by_widest_dim(objects);
             let size = left_objects.len() + right_objects.len();
@@ -390,9 +399,7 @@ mod tests {
             m.clone(),
         );
         let objects = vec![triangle, sphere, quad];
-        println!("0");
         let bvh = Bvh::new(objects, leaf_size);
-        println!("1");
 
         let ray = Ray::new((-1.0, 0.0, 0.0).into(), (-1.0, 0.0, 1.0).into());
         assert!(bvh.get_closest_intersection(&ray).is_none());
