@@ -1,7 +1,7 @@
 use super::object::Object;
 use super::ray::Ray;
 use super::utils::component_wise_range;
-use cgmath::Point3;
+use cgmath::{Point3, EuclideanSpace};
 use time;
 
 /// Bounding Volume Hierarchy
@@ -148,13 +148,68 @@ impl AABB {
     }
 }
 
+/// Splits objects into two halves after sorting by min x coordinate
+fn bvh_split_by_x_axis(mut objects: Vec<Object>) -> (Vec<Object>, Vec<Object>) {
+    objects.sort_by(|a, b| {
+        let (amin, _amax) = a.get_bounding_box();
+        let (bmin, _bmax) = b.get_bounding_box();
+        amin.x.partial_cmp(&bmin.x).unwrap()
+    });
+    let mid = objects.len() / 2;
+    let mut left = objects;
+    let right = left.split_off(mid);
+    (left, right)
+}
+
+/// Splits objects into two halves by the midpoint along the dimension with
+/// largest range in object centroid positions.
+/// As outlined in section 4.4.1 of the PBRT book.
+fn bvh_split_by_widest_dim(mut objects: Vec<Object>) -> (Vec<Object>, Vec<Object>) {
+    let centroids = objects.iter().map(|obj| {
+        let (min, max) = obj.get_bounding_box();
+        let c = Point3::centroid(&[min, max]);
+        c
+    }).collect();
+    let (min_c, max_c) = component_wise_range(centroids);
+    println!("min_c {:?} max_c {:?}", min_c, max_c);
+
+    let diff = max_c - min_c;
+    let mut maxdim = 0;
+    let mut max = diff.x;
+    if diff.y > max {
+        max = diff.y;
+        maxdim = 1;
+    }
+    if diff.z > max {
+        max = diff.z;
+        maxdim = 2;
+    }
+    let max_axis_midpoint: f32 = (max_c[maxdim] - min_c[maxdim]) / 2.;
+
+    println!("max {} maxdim {} midpoint {}", max, maxdim, max_axis_midpoint);
+    let (left, right) = objects.drain(..).partition(|obj| {
+        let (min, max) = obj.get_bounding_box();
+        let c = Point3::centroid(&[min, max]);
+        c[maxdim] < max_axis_midpoint
+    });
+
+    (left, right)
+}
+
+
+/// Splits objects into two halves in order to minimize the expected cost
+/// of a ray intersection query, using the Surface Area Heuristic (SAH).
+/// See section 4.4.2 of the PBRT book.
+// fn bvh_split_by_sah(mut objects: Vec<Object>) -> (Vec<Object>, Vec<Object>) {
+// }
+
 enum BvhTree {
     Node(AABB, Box<BvhTree>, Box<BvhTree>, usize),
     Leaf(AABB, Vec<Object>, usize),
 }
 
 impl BvhTree {
-    fn new(mut objects: Vec<Object>, leaf_size: usize) -> Self {
+    fn new(objects: Vec<Object>, leaf_size: usize) -> Self {
         let size = objects.len();
         if size <= leaf_size {
             let aabbs = objects
@@ -167,19 +222,8 @@ impl BvhTree {
             let aabb = AABB::union(aabbs);
             BvhTree::Leaf(aabb, objects, size)
         } else {
-            // TODO: Partition objects in a smarter way.
-            objects.sort_by(|a, b| {
-                let (amin, _amax) = a.get_bounding_box();
-                let (bmin, _bmax) = b.get_bounding_box();
-                amin.x.partial_cmp(&bmin.x).unwrap()
-            });
-            let (left_objects, right_objects) = {
-                let mid = objects.len() / 2;
-                let mut left = objects;
-                let right = left.split_off(mid);
-                (left, right)
-            };
-
+            // let (left_objects, right_objects) = bvh_split_by_x_axis(objects);
+            let (left_objects, right_objects) = bvh_split_by_widest_dim(objects);
             let size = left_objects.len() + right_objects.len();
             let left = BvhTree::new(left_objects, leaf_size);
             let right = BvhTree::new(right_objects, leaf_size);
@@ -264,10 +308,11 @@ impl BvhTree {
 
 #[cfg(test)]
 mod tests {
-    use super::{Bvh, AABB};
+    use super::{Bvh, AABB, bvh_split_by_widest_dim};
     use crate::material::{Material, MaterialType, TextureType};
     use crate::object::Object;
     use crate::ray::Ray;
+    use cgmath::Point3;
 
     #[test]
     fn test_aabb_surface_area() {
@@ -345,7 +390,9 @@ mod tests {
             m.clone(),
         );
         let objects = vec![triangle, sphere, quad];
+        println!("0");
         let bvh = Bvh::new(objects, leaf_size);
+        println!("1");
 
         let ray = Ray::new((-1.0, 0.0, 0.0).into(), (-1.0, 0.0, 1.0).into());
         assert!(bvh.get_closest_intersection(&ray).is_none());
@@ -373,5 +420,25 @@ mod tests {
 
         let ray = Ray::new((2.0, 0.0, 0.0).into(), (0.0, -1.0, 0.0).into());
         assert!(bvh.get_closest_intersection(&ray).is_none());
+    }
+
+    #[test]
+    fn test_bvh_split_by_widest_dim() {
+        let mock_sphere = |center: Point3<f32>| {
+            Object::new_sphere(center, 1.0, Material::new(MaterialType::None, TextureType::None))
+        };
+
+        let objects = vec![
+            mock_sphere((0., 0., 0.).into()),
+            mock_sphere((2., 1., 1.).into()),
+            mock_sphere((1.5, 1., 1.).into()),
+        ];
+
+        let (left, right) = bvh_split_by_widest_dim(objects);
+
+        // let left: Vec<(Point3<f32>, Point3<f32>)> = left.iter().map(|obj| { obj.get_bounding_box() }).collect();
+        // println!("{:?}", left);
+        assert_eq!(left.len(), 1);
+        assert_eq!(right.len(), 2);
     }
 }

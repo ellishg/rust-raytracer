@@ -65,17 +65,17 @@ fn main() {
     let mut objects = vec![];
     let mut lights = vec![];
 
-    let (new_objects, new_lights) = load_basic();
-    objects.extend(new_objects);
-    lights.extend(new_lights);
-
-    let (new_objects, new_lights) = load_suzanne();
-    objects.extend(new_objects);
-    lights.extend(new_lights);
-
-    // let (new_objects, new_lights) = load_random_spheres(30);
+    // let (new_objects, new_lights) = load_basic();
     // objects.extend(new_objects);
     // lights.extend(new_lights);
+
+    // let (new_objects, new_lights) = load_suzanne();
+    // objects.extend(new_objects);
+    // lights.extend(new_lights);
+
+    let (new_objects, new_lights) = load_random_spheres(30);
+    objects.extend(new_objects);
+    lights.extend(new_lights);
 
     let samples_per_pixel = cl_args
         .value_of("samples_per_pixel")
