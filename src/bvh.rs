@@ -10,10 +10,10 @@ pub struct Bvh {
 }
 
 impl Bvh {
-    pub fn new(objects: Vec<Object>, leaf_size: usize) -> Self {
+    pub fn new(objects: Vec<Object>) -> Self {
         let instant = time::Instant::now();
         let num_objects = objects.len();
-        let bvh_tree = BvhTree::new(objects, leaf_size);
+        let bvh_tree = BvhTree::new(objects);
         assert_eq!(bvh_tree.get_num_objects(), num_objects);
         debug!(
             "Generated a bvh tree of {} objects with depth {} and total_sa {} in {} seconds.",
@@ -179,7 +179,6 @@ fn bvh_split_by_widest_dim(mut objects: Vec<Object>) -> (Vec<Object>, Vec<Object
         c
     }).collect();
     let (min_c, max_c) = component_wise_range(centroids);
-    // println!("min_c {:?} max_c {:?}", min_c, max_c);
 
     let diff = max_c - min_c;
     let mut maxdim = 0;
@@ -189,12 +188,10 @@ fn bvh_split_by_widest_dim(mut objects: Vec<Object>) -> (Vec<Object>, Vec<Object
         maxdim = 1;
     }
     if diff.z > max {
-        max = diff.z;
         maxdim = 2;
     }
     let max_axis_midpoint: f32 = (max_c[maxdim] + min_c[maxdim]) / 2.;
 
-    // println!("max {} maxdim {} midpoint {}", max, maxdim, max_axis_midpoint);
     let (left, right) = objects.drain(..).partition(|obj| {
         let (min, max) = obj.get_bounding_box();
         let c = Point3::centroid(&[min, max]);
@@ -217,9 +214,10 @@ enum BvhTree {
 }
 
 impl BvhTree {
-    fn new(objects: Vec<Object>, leaf_size: usize) -> Self {
+    fn new(objects: Vec<Object>) -> Self {
         let size = objects.len();
-        if size <= leaf_size {
+        // Always use leaf size of 1, as done by PBRT
+        if size <= 1 {
             let aabbs = objects
                 .iter()
                 .map(|object| {
@@ -234,8 +232,8 @@ impl BvhTree {
             // let (left_objects, right_objects) = bvh_split_by_x_axis(objects);
             let (left_objects, right_objects) = bvh_split_by_widest_dim(objects);
             let size = left_objects.len() + right_objects.len();
-            let left = BvhTree::new(left_objects, leaf_size);
-            let right = BvhTree::new(right_objects, leaf_size);
+            let left = BvhTree::new(left_objects);
+            let right = BvhTree::new(right_objects);
 
             let aabb = AABB::union(vec![left.get_aabb(), right.get_aabb()]);
 
@@ -382,7 +380,6 @@ mod tests {
 
     #[test]
     fn test_bvh_intersect() {
-        let leaf_size = 1;
         let m = Material::new(MaterialType::None, TextureType::None);
         let triangle = Object::new_triangle(
             (0.0, 0.0, 1.0).into(),
@@ -399,7 +396,7 @@ mod tests {
             m.clone(),
         );
         let objects = vec![triangle, sphere, quad];
-        let bvh = Bvh::new(objects, leaf_size);
+        let bvh = Bvh::new(objects);
 
         let ray = Ray::new((-1.0, 0.0, 0.0).into(), (-1.0, 0.0, 1.0).into());
         assert!(bvh.get_closest_intersection(&ray).is_none());
