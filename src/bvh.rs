@@ -1,7 +1,7 @@
 use super::object::Object;
 use super::ray::Ray;
 use super::utils::component_wise_range;
-use cgmath::{Point3, EuclideanSpace};
+use cgmath::{EuclideanSpace, Point3};
 use time;
 
 /// Bounding Volume Hierarchy
@@ -48,6 +48,11 @@ impl AABB {
         assert!(min.y <= max.y);
         assert!(min.z <= max.z);
         AABB { min, max }
+    }
+
+    /// A zero-volume bounding box, where `min == max == origin`.
+    fn empty() -> Self {
+        AABB::new((0.0, 0.0, 0.0).into(), (0.0, 0.0, 0.0).into())
     }
 
     /// Returns `Some(t)` if `ray` intersects this bounding box at a point give by
@@ -128,23 +133,26 @@ impl AABB {
     /// Return the union of all the bounding boxes.
     fn union(aabbs: Vec<AABB>) -> Self {
         if aabbs.is_empty() {
-            let zero = (0.0, 0.0, 0.0).into();
-            AABB::new(zero, zero)
+            AABB::empty()
         } else {
             let points = aabbs
                 .iter()
                 .flat_map(|aabb| vec![aabb.min, aabb.max])
                 .collect();
-            let (min, max) = component_wise_range(points);
+            let (min, max) = component_wise_range(&points);
             AABB::new(min, max)
         }
     }
 
     fn surface_area(&self) -> f32 {
         let diff = self.max - self.min;
-        2. * diff.x * diff.y +
-        2. * diff.x * diff.z +
-        2. * diff.z * diff.y
+        2. * diff.x * diff.y + 2. * diff.x * diff.z + 2. * diff.z * diff.y
+    }
+}
+
+impl Default for AABB {
+    fn default() -> Self {
+        AABB::empty()
     }
 }
 
@@ -169,17 +177,27 @@ fn bvh_split_by_x_axis(mut objects: Vec<Object>) -> (Vec<Object>, Vec<Object>) {
     (left, right)
 }
 
+#[derive(PartialEq, Eq)]
+enum SplitType {
+    Basic,
+    SAH,
+}
+
 /// Splits objects into two halves by the midpoint along the dimension with
 /// largest range in object centroid positions.
 /// As outlined in section 4.4.1 of the PBRT book.
-fn bvh_split_by_widest_dim(mut objects: Vec<Object>) -> (Vec<Object>, Vec<Object>) {
-    let centroids = objects.iter().map(|obj| {
-        let (min, max) = obj.get_bounding_box();
-        let c = Point3::centroid(&[min, max]);
-        c
-    }).collect();
-    let (min_c, max_c) = component_wise_range(centroids);
+fn bvh_split(mut objects: Vec<Object>, split_type: SplitType) -> (Vec<Object>, Vec<Object>) {
+    let centroids = objects
+        .iter()
+        .map(|obj| {
+            let (min, max) = obj.get_bounding_box();
+            let c = Point3::centroid(&[min, max]);
+            c
+        })
+        .collect();
 
+    // find the dimension with the largest range
+    let (min_c, max_c) = component_wise_range(&centroids);
     let diff = max_c - min_c;
     let mut maxdim = 0;
     let mut max = diff.x;
@@ -190,23 +208,119 @@ fn bvh_split_by_widest_dim(mut objects: Vec<Object>) -> (Vec<Object>, Vec<Object
     if diff.z > max {
         maxdim = 2;
     }
-    let max_axis_midpoint: f32 = (max_c[maxdim] + min_c[maxdim]) / 2.;
+    let max_axis_midpoint = (max_c[maxdim] + min_c[maxdim]) / 2.;
 
-    let (left, right) = objects.drain(..).partition(|obj| {
-        let (min, max) = obj.get_bounding_box();
-        let c = Point3::centroid(&[min, max]);
-        c[maxdim] < max_axis_midpoint
-    });
-
-    (left, right)
+    // partition depending on split_type
+    // for small sets of objects we always use the basic split strategy
+    if objects.len() <= 4 || split_type == SplitType::Basic {
+        let (left, right) = objects.drain(..).partition(|obj| {
+            let (min, max) = obj.get_bounding_box();
+            let c = Point3::centroid(&[min, max]);
+            c[maxdim] < max_axis_midpoint
+        });
+        (left, right)
+    } else {
+        bvh_split_by_sah(objects, &centroids, AABB::new(min_c, max_c), maxdim)
+    }
 }
 
+// #[derive(Copy, Clone)]
+#[derive(Default)]
+struct SplitBucket {
+    count: u32,
+    aabb: AABB,
+    obj_indexes: Vec<usize>
+}
+
+const N_BUCKETS: u8 = 12;
 
 /// Splits objects into two halves in order to minimize the expected cost
 /// of a ray intersection query, using the Surface Area Heuristic (SAH).
 /// See section 4.4.2 of the PBRT book.
-// fn bvh_split_by_sah(mut objects: Vec<Object>) -> (Vec<Object>, Vec<Object>) {
-// }
+fn bvh_split_by_sah(
+    mut objects: Vec<Object>,
+    centroids: &Vec<Point3<f32>>,
+    global_bb: AABB,
+    dim: usize,
+) -> (Vec<Object>, Vec<Object>) {
+    let mut buckets: [SplitBucket; N_BUCKETS as usize] = Default::default();
+
+    // initialize SAH partition buckets
+    let dim_range = global_bb.max[dim] - global_bb.min[dim];
+    for (i, c) in centroids.iter().enumerate() {
+        let b: f32 = f32::from(N_BUCKETS) * (c[dim] - global_bb.min[dim]) / dim_range;
+        let mut b_ind = b.trunc() as i32;
+        if b_ind == N_BUCKETS.into() { b_ind -= 1; }
+
+        assert!(b_ind >= 0);
+        assert!(b_ind < N_BUCKETS.into());
+        let b_ind = b_ind as usize;
+
+        let (obj_min, obj_max) = objects[i].get_bounding_box();
+        let obj_bb: AABB = AABB::new(obj_min, obj_max);
+        buckets[b_ind].count += 1;
+        buckets[b_ind].aabb = AABB::union(vec![buckets[b_ind].aabb, obj_bb]);
+        buckets[b_ind].obj_indexes.push(i);
+    }
+
+    // compute cost to split for each bucket
+    let range = 0 .. (N_BUCKETS - 1) as usize;
+    let costs: Vec<f32> = range.map(|i| {
+        // NOTE: there probably exists a much neater, rustic way to compute the
+        // left_ and right_ values...
+        let left_buckets = || {buckets.iter().enumerate().filter(|(j, _bucket)| {
+            j <= &i
+        })};
+        let bb_left = AABB::union(left_buckets().map(|(_j, bucket)| {
+            bucket.aabb
+        }).collect());
+        let count_left: f32 = left_buckets().map(|(_j, bucket)| {
+            bucket.count as f32
+        }).sum();
+
+        let right_buckets = || {buckets.iter().enumerate().filter(|(j, _bucket)| {
+            j > &i
+        })};
+        let bb_right = AABB::union(right_buckets().map(|(_j, bucket)| {
+            bucket.aabb
+        }).collect());
+        let count_right: f32 = right_buckets().map(|(_j, bucket)| {
+            bucket.count as f32
+        }).sum();
+
+        0.125 + (
+            count_left * bb_left.surface_area()
+            + count_right * bb_right.surface_area()
+        ) / global_bb.surface_area()
+    }).collect();
+
+    // find the bucket with the minimum cost
+    let mut min_cost: f32 = costs[0];
+    let mut min_cost_i: usize = 0;
+
+    for (i, cost) in costs.iter().enumerate() {
+        if cost < &min_cost {
+            min_cost = *cost;
+            min_cost_i = i;
+        }
+    }
+
+    // split objects by the min_cost_i (bucket index)
+    let mut left_inds = vec!(false; objects.len());
+    for (i, bucket) in buckets.iter().enumerate() {
+        let split_left = i <= min_cost_i;
+        for ind in &bucket.obj_indexes {
+            left_inds[*ind] = split_left;
+        }
+    }
+    let mut i = 0;
+    let (left, right) = objects.drain(..).partition(|_obj| {
+        let res = left_inds[i];
+        i += 1;
+        res
+    });
+    (left, right)
+}
 
 enum BvhTree {
     Node(AABB, Box<BvhTree>, Box<BvhTree>, usize),
@@ -228,10 +342,9 @@ impl BvhTree {
             let aabb = AABB::union(aabbs);
             BvhTree::Leaf(aabb, objects, size)
         } else {
-            // let (left_objects, right_objects) = bvh_split_naive(objects);
-            // let (left_objects, right_objects) = bvh_split_by_x_axis(objects);
-            let (left_objects, right_objects) = bvh_split_by_widest_dim(objects);
-            let size = left_objects.len() + right_objects.len();
+            let size = objects.len();
+            // let (left_objects, right_objects) = bvh_split(objects, SplitType::Basic);
+            let (left_objects, right_objects) = bvh_split(objects, SplitType::SAH);
             let left = BvhTree::new(left_objects);
             let right = BvhTree::new(right_objects);
 
@@ -303,9 +416,7 @@ impl BvhTree {
     /// Total surface area of this bvh (recursively computed)
     fn total_sa(&self) -> f32 {
         match self {
-            BvhTree::Leaf(aabb, _objs, _size) => {
-                aabb.surface_area()
-            }
+            BvhTree::Leaf(aabb, _objs, _size) => aabb.surface_area(),
             BvhTree::Node(aabb, left, right, _size) => {
                 aabb.surface_area() + left.total_sa() + right.total_sa()
             }
@@ -315,7 +426,7 @@ impl BvhTree {
 
 #[cfg(test)]
 mod tests {
-    use super::{Bvh, AABB, bvh_split_by_widest_dim};
+    use super::{bvh_split, Bvh, SplitType, AABB};
     use crate::material::{Material, MaterialType, TextureType};
     use crate::object::Object;
     use crate::ray::Ray;
@@ -429,20 +540,26 @@ mod tests {
     #[test]
     fn test_bvh_split_by_widest_dim() {
         let mock_sphere = |center: Point3<f32>| {
-            Object::new_sphere(center, 1.0, Material::new(MaterialType::None, TextureType::None))
+            Object::new_sphere(
+                center,
+                1.0,
+                Material::new(MaterialType::None, TextureType::None),
+            )
         };
 
         let objects = vec![
             mock_sphere((0., 0., 0.).into()),
-            mock_sphere((2., 1., 1.).into()),
-            mock_sphere((1.5, 1., 1.).into()),
+            mock_sphere((9., 1., 1.).into()),
+            mock_sphere((6., 1., 1.).into()),
+            mock_sphere((7., 1., 1.).into()),
+            mock_sphere((8., 1., 1.).into()),
         ];
 
-        let (left, right) = bvh_split_by_widest_dim(objects);
+        let (left, right) = bvh_split(objects, SplitType::SAH);
 
         // let left: Vec<(Point3<f32>, Point3<f32>)> = left.iter().map(|obj| { obj.get_bounding_box() }).collect();
         // println!("{:?}", left);
         assert_eq!(left.len(), 1);
-        assert_eq!(right.len(), 2);
+        assert_eq!(right.len(), 4);
     }
 }

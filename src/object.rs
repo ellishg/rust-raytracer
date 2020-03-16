@@ -291,14 +291,14 @@ impl Object {
                     .into_iter()
                     .map(|point| object_to_world.transform_point(point))
                     .collect();
-                component_wise_range(points)
+                component_wise_range(&points)
             }
             ObjectType::Triangle(a, b, c) => {
                 let points = vec![a, b, c]
                     .into_iter()
                     .map(|point| object_to_world.transform_point(point))
                     .collect();
-                component_wise_range(points)
+                component_wise_range(&points)
             }
         }
     }
