@@ -50,8 +50,6 @@ impl Object {
                             .polys
                             .iter()
                             .map(|poly| {
-                                // TODO: Currently only triangle meshes are supported.
-                                assert_eq!(poly.len(), 3);
                                 let vertex_indices: Vec<usize> =
                                     poly.iter().map(|tuple| tuple.0).collect();
                                 // TODO: .obj files also hold normal and material information.
@@ -61,12 +59,23 @@ impl Object {
                                     .into_iter()
                                     .map(|i| obj.position[i])
                                     .collect();
-                                let a = vertices[0].into();
-                                let b = vertices[1].into();
-                                let c = vertices[2].into();
+                                let object_type = if vertices.len() == 3 {
+                                    let a = vertices[0].into();
+                                    let b = vertices[1].into();
+                                    let c = vertices[2].into();
+                                    ObjectType::Triangle(a, b, c)
+                                } else if vertices.len() == 4 {
+                                    let a = vertices[0].into();
+                                    let b = vertices[1].into();
+                                    let c = vertices[2].into();
+                                    let d = vertices[3].into();
+                                    ObjectType::Quad(a, b, c, d)
+                                } else {
+                                    panic!("Mesh has a polygon with {} vertices which is not supported.", vertices.len())
+                                };
                                 Object {
-                                    object_type: ObjectType::Triangle(a, b, c),
-                                    object_to_world: object_to_world,
+                                    object_type,
+                                    object_to_world,
                                     world_to_object: object_to_world.inverse_transform().unwrap(),
                                     material: material.clone(),
                                 }
