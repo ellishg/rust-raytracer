@@ -177,10 +177,12 @@ pub fn load_suzanne() -> (Vec<Object>, Vec<Light>) {
     (objects, vec![])
 }
 
-pub fn default_camera() -> Camera {
+/// Creates a camera in a default location with a square viewport
+/// with side length `pixel_width`.
+pub fn default_camera(pixel_width: u32) -> Camera {
     Camera::new(
-        500,
-        500,
+        pixel_width,
+        pixel_width,
         (0.0, 1.5, 5.0).into(),
         (0.0, 0.0, 0.0).into(),
         (0.0, 1.0, 0.0).into(),

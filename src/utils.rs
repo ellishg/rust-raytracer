@@ -1,4 +1,4 @@
-use cgmath::{InnerSpace, Matrix4, Point3, Transform, Vector3};
+use cgmath::{Bounded, InnerSpace, Matrix4, Point3, Transform, Vector3};
 
 /// Clamps a value x to be in the range (low, high)
 // `f32.clamp` is nightly-only :(
@@ -17,12 +17,12 @@ pub fn reflect(v: Vector3<f32>, normal: Vector3<f32>) -> Vector3<f32> {
 }
 
 /// Returns the (min, max) of each dimension for the collection of points.
-pub fn component_wise_range(mut points: Vec<Point3<f32>>) -> (Point3<f32>, Point3<f32>) {
-    let v = points.pop().expect("points cannot be empty!");
-    let min = points.iter().fold(v, |a, b| {
+pub fn component_wise_range(points: &Vec<Point3<f32>>) -> (Point3<f32>, Point3<f32>) {
+    assert!(!points.is_empty());
+    let min = points.iter().fold(Point3::<f32>::max_value(), |a, b| {
         (f32::min(a.x, b.x), f32::min(a.y, b.y), f32::min(a.z, b.z)).into()
     });
-    let max = points.iter().fold(v, |a, b| {
+    let max = points.iter().fold(Point3::<f32>::min_value(), |a, b| {
         (f32::max(a.x, b.x), f32::max(a.y, b.y), f32::max(a.z, b.z)).into()
     });
     (min, max)
@@ -84,7 +84,7 @@ mod tests {
             (0., -1., 0.).into(),
             (1., 0., 0.).into(),
         ];
-        let range = component_wise_range(points);
+        let range = component_wise_range(&points);
         assert_eq!(range, ((-1., -1., 0.).into(), (1., 0., 1.).into()));
     }
 
