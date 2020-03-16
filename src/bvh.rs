@@ -325,11 +325,15 @@ enum BvhTree {
     Leaf(AABB, Vec<Object>, usize),
 }
 
+// PBRT uses a leaf size of 1, but empirically from a range of scenes, it seems
+// that a slightly higher number works better (a bit slower for small scenes,
+// but provides a large reduction in BVH generation time for very large scenes).
+const BVH_LEAF_SIZE: usize = 4;
+
 impl BvhTree {
     fn new(objects: Vec<Object>) -> Self {
         let size = objects.len();
-        // Always use leaf size of 1, as done by PBRT
-        if size <= 1 {
+        if size <= BVH_LEAF_SIZE {
             let aabbs = objects
                 .iter()
                 .map(|object| {

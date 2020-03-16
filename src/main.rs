@@ -56,9 +56,23 @@ fn main() {
             Arg::with_name("max_ray_bounces")
                 .short("b")
                 .long("max_ray_bounces")
-                .help("Max number of times to bounce a ray. Used for reflection and refraction.")
+                .help(
+                    "Max number of times to bounce a ray. \
+                     Used for reflection and refraction.",
+                )
                 .required(false)
                 .default_value("10"),
+        )
+        .arg(
+            Arg::with_name("pixel_width")
+                .short("w")
+                .long("pixel_width")
+                .help(
+                    "Width of the outputted image in pixels. \
+                     Specifically, changes the width/height of the camera viewport.",
+                )
+                .required(false)
+                .default_value("500"),
         )
         .get_matches();
 
@@ -88,9 +102,10 @@ fn main() {
         .parse()
         .unwrap();
     let num_threads = cl_args.value_of("threads").unwrap().parse().unwrap();
+    let pixel_width = cl_args.value_of("pixel_width").unwrap().parse().unwrap();
 
     render(
-        default_camera(),
+        default_camera(pixel_width),
         objects,
         lights,
         Color::grayscale(0.2),
