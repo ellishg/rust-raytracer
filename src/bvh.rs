@@ -183,9 +183,15 @@ enum SplitType {
     SAH,
 }
 
-/// Splits objects into two halves by the midpoint along the dimension with
-/// largest range in object centroid positions.
-/// As outlined in section 4.4.1 of the PBRT book.
+/// Splits objects into two halves along the dimension with largest range in
+/// object centroid positions.
+/// If SplitType is Basic, splits down the midpoint (as in pbrt book section 4.4.1)
+/// If SplitType is SAH, splits using bucketing and a surface area heuristic (pbrt book section 4.4.2)
+///
+/// Reference material from pbrt:
+/// book https://www.pbrt.org/chapters/pbrt-2ed-chap4.pdf
+/// code https://github.com/mmp/pbrt-v3/blob/master/src/accelerators/bvh.cpp
+/// original SAH bucketing paper http://www.sci.utah.edu/~wald/Publications/2007/ParallelBVHBuild/fastbuild.pdf
 fn bvh_split(mut objects: Vec<Object>, split_type: SplitType) -> (Vec<Object>, Vec<Object>) {
     let centroids = objects
         .iter()
@@ -235,8 +241,7 @@ struct SplitBucket {
 const N_BUCKETS: u8 = 12;
 
 /// Splits objects into two halves in order to minimize the expected cost
-/// of a ray intersection query, using the Surface Area Heuristic (SAH).
-/// See section 4.4.2 of the PBRT book.
+/// of a ray intersection query using the Surface Area Heuristic (SAH).
 fn bvh_split_by_sah(
     mut objects: Vec<Object>,
     centroids: &Vec<Point3<f32>>,
@@ -336,6 +341,7 @@ impl BvhTree {
             BvhTree::Leaf(aabb, objects, size)
         } else {
             let size = objects.len();
+            // let (left_objects, right_objects) = bvh_split_naive(objects);
             let (left_objects, right_objects) = bvh_split(objects, SplitType::SAH);
             let left = BvhTree::new(left_objects);
             let right = BvhTree::new(right_objects);
