@@ -1,4 +1,4 @@
-use cgmath::{InnerSpace, Matrix4, Point3, Transform, Vector3, Bounded};
+use cgmath::{Bounded, InnerSpace, Matrix4, Point3, Transform, Vector3};
 
 /// Clamps a value x to be in the range (low, high)
 // `f32.clamp` is nightly-only :(

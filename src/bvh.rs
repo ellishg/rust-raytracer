@@ -229,7 +229,7 @@ fn bvh_split(mut objects: Vec<Object>, split_type: SplitType) -> (Vec<Object>, V
 struct SplitBucket {
     count: u32,
     aabb: AABB,
-    obj_indexes: Vec<usize>
+    obj_indexes: Vec<usize>,
 }
 
 const N_BUCKETS: u8 = 12;
@@ -250,7 +250,9 @@ fn bvh_split_by_sah(
     for (i, c) in centroids.iter().enumerate() {
         let b: f32 = f32::from(N_BUCKETS) * (c[dim] - global_bb.min[dim]) / dim_range;
         let mut b_ind = b.trunc() as i32;
-        if b_ind == N_BUCKETS.into() { b_ind -= 1; }
+        if b_ind == N_BUCKETS.into() {
+            b_ind -= 1;
+        }
 
         assert!(b_ind >= 0);
         assert!(b_ind < N_BUCKETS.into());
@@ -264,35 +266,26 @@ fn bvh_split_by_sah(
     }
 
     // compute cost to split for each bucket
-    let range = 0 .. (N_BUCKETS - 1) as usize;
-    let costs: Vec<f32> = range.map(|i| {
-        // NOTE: there probably exists a much neater, rustic way to compute the
-        // left_ and right_ values...
-        let left_buckets = || {buckets.iter().enumerate().filter(|(j, _bucket)| {
-            j <= &i
-        })};
-        let bb_left = AABB::union(left_buckets().map(|(_j, bucket)| {
-            bucket.aabb
-        }).collect());
-        let count_left: f32 = left_buckets().map(|(_j, bucket)| {
-            bucket.count as f32
-        }).sum();
+    let range = 0..(N_BUCKETS - 1) as usize;
+    let costs: Vec<f32> = range
+        .map(|i| {
+            // NOTE: there probably exists a much neater, rustic way to compute the
+            // left_ and right_ values...
+            let left_buckets = || buckets.iter().enumerate().filter(|(j, _bucket)| j <= &i);
+            let bb_left = AABB::union(left_buckets().map(|(_j, bucket)| bucket.aabb).collect());
+            let count_left: f32 = left_buckets().map(|(_j, bucket)| bucket.count as f32).sum();
 
-        let right_buckets = || {buckets.iter().enumerate().filter(|(j, _bucket)| {
-            j > &i
-        })};
-        let bb_right = AABB::union(right_buckets().map(|(_j, bucket)| {
-            bucket.aabb
-        }).collect());
-        let count_right: f32 = right_buckets().map(|(_j, bucket)| {
-            bucket.count as f32
-        }).sum();
+            let right_buckets = || buckets.iter().enumerate().filter(|(j, _bucket)| j > &i);
+            let bb_right = AABB::union(right_buckets().map(|(_j, bucket)| bucket.aabb).collect());
+            let count_right: f32 = right_buckets()
+                .map(|(_j, bucket)| bucket.count as f32)
+                .sum();
 
-        0.125 + (
-            count_left * bb_left.surface_area()
-            + count_right * bb_right.surface_area()
-        ) / global_bb.surface_area()
-    }).collect();
+            0.125
+                + (count_left * bb_left.surface_area() + count_right * bb_right.surface_area())
+                    / global_bb.surface_area()
+        })
+        .collect();
 
     // find the bucket with the minimum cost
     let mut min_cost: f32 = costs[0];
@@ -306,7 +299,7 @@ fn bvh_split_by_sah(
     }
 
     // split objects by the min_cost_i (bucket index)
-    let mut left_inds = vec!(false; objects.len());
+    let mut left_inds = vec![false; objects.len()];
     for (i, bucket) in buckets.iter().enumerate() {
         let split_left = i <= min_cost_i;
         for ind in &bucket.obj_indexes {
@@ -343,7 +336,6 @@ impl BvhTree {
             BvhTree::Leaf(aabb, objects, size)
         } else {
             let size = objects.len();
-            // let (left_objects, right_objects) = bvh_split(objects, SplitType::Basic);
             let (left_objects, right_objects) = bvh_split(objects, SplitType::SAH);
             let left = BvhTree::new(left_objects);
             let right = BvhTree::new(right_objects);
@@ -426,7 +418,7 @@ impl BvhTree {
 
 #[cfg(test)]
 mod tests {
-    use super::{bvh_split, Bvh, SplitType, AABB};
+    use super::{bvh_split, bvh_split_by_x_axis, bvh_split_naive, Bvh, SplitType, AABB};
     use crate::material::{Material, MaterialType, TextureType};
     use crate::object::Object;
     use crate::ray::Ray;
@@ -538,7 +530,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bvh_split_by_widest_dim() {
+    fn test_bvh_split() {
         let mock_sphere = |center: Point3<f32>| {
             Object::new_sphere(
                 center,
@@ -547,18 +539,29 @@ mod tests {
             )
         };
 
-        let objects = vec![
-            mock_sphere((0., 0., 0.).into()),
-            mock_sphere((9., 1., 1.).into()),
-            mock_sphere((6., 1., 1.).into()),
-            mock_sphere((7., 1., 1.).into()),
-            mock_sphere((8., 1., 1.).into()),
-        ];
+        let objects = || {
+            vec![
+                mock_sphere((0., 0., 0.).into()),
+                mock_sphere((1., 6., 1.).into()),
+                mock_sphere((1., 7., 1.).into()),
+                mock_sphere((1., 8., 1.).into()),
+                mock_sphere((1., 9., 1.).into()),
+            ]
+        };
 
-        let (left, right) = bvh_split(objects, SplitType::SAH);
+        let (left, right) = bvh_split_naive(objects());
+        assert_eq!(left.len(), 2);
+        assert_eq!(right.len(), 3);
 
-        // let left: Vec<(Point3<f32>, Point3<f32>)> = left.iter().map(|obj| { obj.get_bounding_box() }).collect();
-        // println!("{:?}", left);
+        let (left, right) = bvh_split_by_x_axis(objects());
+        assert_eq!(left.len(), 2);
+        assert_eq!(right.len(), 3);
+
+        let (left, right) = bvh_split(objects(), SplitType::Basic);
+        assert_eq!(left.len(), 1);
+        assert_eq!(right.len(), 4);
+
+        let (left, right) = bvh_split(objects(), SplitType::SAH);
         assert_eq!(left.len(), 1);
         assert_eq!(right.len(), 4);
     }
