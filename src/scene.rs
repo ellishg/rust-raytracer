@@ -38,17 +38,17 @@ pub fn load_basic() -> (Vec<Object>, Vec<Light>) {
     let object = object.transform(object_to_world);
     objects.push(object);
 
-    // // Create a mirror sphere
-    // let mirror = MaterialType::Reflective;
-    // let phong = MaterialType::new_phong(0.4, 0.6, 1.8);
-    // let material_type = MaterialType::Composition(vec![(mirror, 0.4), (phong, 0.6)]);
-    // let color = TextureType::new_flat(Color::blue());
-    // let object = Object::new_sphere(
-    //     (-1.0, 0.0, 0.0).into(),
-    //     1.0,
-    //     Material::new(material_type, color),
-    // );
-    // objects.push(object);
+    // Create a mirror sphere
+    let mirror = MaterialType::Reflective;
+    let phong = MaterialType::new_phong(0.4, 0.6, 1.8);
+    let material_type = MaterialType::Composition(vec![(mirror, 0.4), (phong, 0.6)]);
+    let color = TextureType::new_flat(Color::blue());
+    let object = Object::new_sphere(
+        (-2.0, 0.0, -2.0).into(),
+        1.0,
+        Material::new(material_type, color),
+    );
+    objects.push(object);
 
     // Create a transparent sphere
     // The index of refraction for glass is about 1.69.
@@ -74,21 +74,31 @@ pub fn load_basic() -> (Vec<Object>, Vec<Light>) {
     );
     objects.push(object);
 
-    // Create a textured triangle.
-    let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
-    let object = Object::new_triangle(
-        (-0.5, 1.0, 1.0).into(),
-        (0.5, 1.0, 1.0).into(),
-        (0.0, 2.0, 1.0).into(),
-        Material::new(phong, texture.clone()),
+    let light = Light::Point((2.0, 3.0, 0.5).into(), (1.0, 1.0, 1.0).into());
+    lights.push(light);
+    let light = Light::Cone(
+        (-1.5, 2.0, 0.0).into(),
+        (1.0, -1.0, 0.0).into(),
+        Deg(50.0),
+        Color::red(),
     );
-    objects.push(object);
+    lights.push(light);
+    let light = Light::Cone(
+        (1.5, 2.0, 0.0).into(),
+        (-1.0, -1.0, 0.0).into(),
+        Deg(50.0),
+        Color::blue(),
+    );
+    lights.push(light);
+    let light = Light::Cone(
+        (0.0, 2.0, 1.5).into(),
+        (0.0, -1.0, -1.0).into(),
+        Deg(50.0),
+        Color::green(),
+    );
+    lights.push(light);
 
-    let light = Light::new((2.0, 3.0, 0.5).into(), (1.0, 1.0, 1.0).into());
-    lights.push(light);
-    let light = Light::new((1.0, 2.0, 2.5).into(), (1.0, 1.0, 1.0).into());
-    lights.push(light);
-    let light = Light::new((-4.0, 2.0, 2.0).into(), (1.0, 1.0, 1.0).into());
+    let light = Light::Ambient(0.2, Color::white());
     lights.push(light);
 
     (objects, lights)
@@ -141,9 +151,9 @@ pub fn load_random_spheres(num_spheres: u16) -> (Vec<Object>, Vec<Light>) {
         objects.push(object);
     }
 
-    let light = Light::new((1.0, 2.0, 2.5).into(), (1.0, 1.0, 1.0).into());
+    let light = Light::Point((1.0, 2.0, 2.5).into(), (1.0, 1.0, 1.0).into());
     lights.push(light);
-    let light = Light::new((-2.0, 2.0, 1.).into(), (1.0, 1.0, 1.0).into());
+    let light = Light::Point((-2.0, 2.0, 1.).into(), (1.0, 1.0, 1.0).into());
     lights.push(light);
 
     (objects, lights)

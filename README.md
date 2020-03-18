@@ -4,9 +4,9 @@
 ## TODO
 - [x] Move structs into their own files
 - Lights
-  - [ ] Ambient
+  - [x] Ambient
   - [x] Point
-  - [ ] Cone
+  - [x] Cone
   - [ ] Directional
 - Shadows
   - [ ] Soft shadows
