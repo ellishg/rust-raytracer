@@ -7,7 +7,7 @@
   - [x] Ambient
   - [x] Point
   - [ ] Cone
-  - [ ] Directional
+  - [x] Directional
 - Shadows
   - [ ] Soft shadows
   - [ ] Correct shadows from transparent surfaces

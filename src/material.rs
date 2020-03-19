@@ -1,4 +1,4 @@
-use cgmath::{InnerSpace, Point3};
+use cgmath::{InnerSpace, Point3, Vector3};
 use image;
 use std::error::Error;
 use std::path::Path;
@@ -95,6 +95,28 @@ impl MaterialType {
         }
     }
 
+    fn get_phong_multiple(
+        light_direction: Vector3<f32>,
+        normal: Vector3<f32>,
+        incoming_direction: Vector3<f32>,
+        diffuse: f32,
+        specular: f32,
+        shininess: f32,
+    ) -> f32 {
+        debug_assert!(f32::abs(light_direction.magnitude() - 1.) < 1e-4);
+        debug_assert!(f32::abs(normal.magnitude() - 1.) < 1e-4);
+        debug_assert!(f32::abs(incoming_direction.magnitude() - 1.) < 1e-4);
+        let reflection_vector = reflect(light_direction, normal);
+        let specular_intensity = clamp(
+            -reflection_vector.dot(incoming_direction),
+            0.0,
+            1.0,
+        );
+        let diffuse_intensity =
+            clamp(-light_direction.dot(normal), 0.0, 1.0);
+        diffuse * diffuse_intensity + specular * specular_intensity.powf(shininess)
+    }
+
     /// Returns the color of `object` at the point given by `incoming_ray.get_point_on_ray(t)`.
     ///
     /// All arguments are in world space coordinates.
@@ -134,28 +156,21 @@ impl MaterialType {
                 lights
                     .iter()
                     .map(|light| {
-                        match light.light_type {
-                            LightType::Ambient => surface_color * light.color,
+                        let light_color = match light.light_type {
+                            LightType::Ambient => light.color,
                             LightType::Point(position) => {
                                 let light_dir = intersection_point - position;
-                                let light_ray = Ray::new(position, light_dir);
                                 // TODO: Give falloff code to Light.
                                 let falloff = 5.0 / (0.001 + light_dir.magnitude2());
-                                let light_color = falloff * light.color;
-                                let reflection_vector = reflect(light_ray.get_direction(), normal);
-                                let specular_intensity = clamp(
-                                    -reflection_vector.dot(incoming_ray.get_direction()),
-                                    0.0,
-                                    1.0,
-                                );
-                                let diffuse_intensity =
-                                    clamp(-light_ray.get_direction().dot(normal), 0.0, 1.0);
-                                surface_color
-                                    * (diffuse * diffuse_intensity
-                                        + specular * specular_intensity.powf(*shininess))
-                                    * light_color
+                                let phong_multiple = MaterialType::get_phong_multiple(light_dir.normalize(), normal, incoming_ray.get_direction(), *diffuse, *specular, *shininess);
+                                phong_multiple * (falloff * light.color)
                             }
-                        }
+                            LightType::Directional(direction) => {
+                                let phong_multiple = MaterialType::get_phong_multiple(direction, normal, incoming_ray.get_direction(), *diffuse, *specular, *shininess);
+                                phong_multiple * light.color
+                            }
+                        };
+                        surface_color * light_color
                     })
                     .fold((0.0, 0.0, 0.0, 0.0).into(), |acc, x| acc + x)
             }

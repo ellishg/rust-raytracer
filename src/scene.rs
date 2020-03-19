@@ -100,7 +100,7 @@ pub fn load_random_spheres(num_spheres: u16) -> (Vec<Object>, Vec<Light>) {
     let mut lights = vec![];
 
     // ground plane
-    let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
+    let phong = MaterialType::new_phong(1.0, 0.0, 0.2);
     let color = TextureType::new_flat(Color::grayscale(0.3));
     let object = Object::new_quad(
         (-100.0, 0.0, 10.0).into(),
@@ -113,13 +113,14 @@ pub fn load_random_spheres(num_spheres: u16) -> (Vec<Object>, Vec<Light>) {
 
     // back plane
     let back_pos = -8.0;
+    let height = 4.;
     let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
     let color = TextureType::new_flat(Color::blue() * Color::grayscale(0.5));
     let object = Object::new_quad(
-        (10.0, -10.0, back_pos).into(),
-        (10.0, 10.0, back_pos).into(),
-        (-10.0, 10.0, back_pos).into(),
-        (-10.0, -10.0, back_pos).into(),
+        (10.0, -1.0, back_pos).into(),
+        (10.0, height, back_pos).into(),
+        (-10.0, height, back_pos).into(),
+        (-10.0, -1.0, back_pos).into(),
         Material::new(phong, color),
     );
     objects.push(object);
@@ -132,9 +133,9 @@ pub fn load_random_spheres(num_spheres: u16) -> (Vec<Object>, Vec<Light>) {
         let b: f32 = rng.gen_range(0.5, 1.);
         let color = TextureType::new_flat(Color::rgb(r, g, b));
 
-        let x: f32 = rng.gen_range(-3., 3.);
+        let x: f32 = rng.gen_range(-4., 4.0);
         let y: f32 = rng.gen_range(0.1, 0.2);
-        let z: f32 = rng.gen_range(-3., 3.5);
+        let z: f32 = rng.gen_range(-6., 3.5);
         let r: f32 = rng.gen_range(0.05, y);
 
         let object = Object::new_sphere((x, y, z).into(), r, Material::new(phong, color));
@@ -164,6 +165,8 @@ pub fn load_random_spheres(num_spheres: u16) -> (Vec<Object>, Vec<Light>) {
     let light = Light::new_point((-2.0, 2.0, 1.).into(), Color::white());
     lights.push(light);
     let light = Light::new_ambient(Color::grayscale(0.1));
+    lights.push(light);
+    let light = Light::new_directional((-0.2, -1., -0.9).into(), Color::grayscale(0.3));
     lights.push(light);
 
     (objects, lights)

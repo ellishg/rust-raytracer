@@ -27,7 +27,7 @@ pub fn render<P>(
 where
     P: AsRef<Path>,
 {
-    assert!(samples_per_pixel != 0);
+    debug_assert!(samples_per_pixel != 0);
     let instant = time::Instant::now();
 
     let world = World::new(camera, objects, lights, background_color);
@@ -138,6 +138,13 @@ impl World {
                             } else {
                                 false
                             }
+                        }
+                        LightType::Directional(direction) => {
+                            // Checks whether a ray starting from the intersection point, going in
+                            // the opposite direction of the light, hits another object.
+                            let object_to_light = Ray::new(intersection_point, -direction);
+                            let object_to_light = object_to_light.offset(1e-4);
+                            self.bvh.get_closest_intersection(&object_to_light).is_none()
                         }
                     }
                 })

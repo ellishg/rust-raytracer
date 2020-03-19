@@ -87,7 +87,7 @@ fn main() {
     // objects.extend(new_objects);
     // lights.extend(new_lights);
 
-    let (new_objects, new_lights) = load_random_spheres(100);
+    let (new_objects, new_lights) = load_random_spheres(150);
     objects.extend(new_objects);
     lights.extend(new_lights);
 

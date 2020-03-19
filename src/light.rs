@@ -1,9 +1,13 @@
 use super::color::Color;
-use cgmath::Point3;
+use cgmath::{Point3, Vector3, InnerSpace};
 
+/// Ambient light has no position or direction
+/// Point lights illumate from a single position
+/// Directional lights represent parallel rays coming from infinitely far away.
 pub enum LightType {
-    Point(Point3<f32>), // light position
     Ambient,
+    Point(Point3<f32>),  // position
+    Directional(Vector3<f32>),  // direction of parallel light rays
 }
 
 pub struct Light {
@@ -23,6 +27,13 @@ impl Light {
         Light {
             color,
             light_type: LightType::Ambient,
+        }
+    }
+
+    pub fn new_directional(direction: Vector3<f32>, color: Color) -> Light {
+        Light {
+            color,
+            light_type: LightType::Directional(direction.normalize())
         }
     }
 }
