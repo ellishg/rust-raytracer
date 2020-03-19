@@ -61,7 +61,7 @@ fn main() {
                      Used for reflection and refraction.",
                 )
                 .required(false)
-                .default_value("3"),
+                .default_value("4"),
         )
         .arg(
             Arg::with_name("pixel_width")
@@ -72,7 +72,7 @@ fn main() {
                      Specifically, changes the width/height of the camera viewport.",
                 )
                 .required(false)
-                .default_value("2000"),
+                .default_value("500"),
         )
         .get_matches();
 

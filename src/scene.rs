@@ -84,11 +84,11 @@ pub fn load_basic() -> (Vec<Object>, Vec<Light>) {
     );
     objects.push(object);
 
-    let light = Light::new((2.0, 3.0, 0.5).into(), (1.0, 1.0, 1.0).into());
+    let light = Light::new_point((2.0, 3.0, 0.5).into(), (1.0, 1.0, 1.0).into());
     lights.push(light);
-    let light = Light::new((1.0, 2.0, 2.5).into(), (1.0, 1.0, 1.0).into());
+    let light = Light::new_point((1.0, 2.0, 2.5).into(), (1.0, 1.0, 1.0).into());
     lights.push(light);
-    let light = Light::new((-4.0, 2.0, 2.0).into(), (1.0, 1.0, 1.0).into());
+    let light = Light::new_point((-4.0, 2.0, 2.0).into(), (1.0, 1.0, 1.0).into());
     lights.push(light);
 
     (objects, lights)
@@ -101,7 +101,7 @@ pub fn load_random_spheres(num_spheres: u16) -> (Vec<Object>, Vec<Light>) {
 
     // ground plane
     let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
-    let color = TextureType::new_flat(Color::grayscale(0.2));
+    let color = TextureType::new_flat(Color::grayscale(0.3));
     let object = Object::new_quad(
         (-100.0, 0.0, 10.0).into(),
         (10.0, 0.0, 10.0).into(),
@@ -112,17 +112,17 @@ pub fn load_random_spheres(num_spheres: u16) -> (Vec<Object>, Vec<Light>) {
     objects.push(object);
 
     // back plane
-    // let back_pos = -4.0;
-    // let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
-    // let color = TextureType::new_flat(Color::grayscale(0.8));
-    // let object = Object::new_quad(
-    //     (10.0, -10.0, back_pos).into(),
-    //     (10.0, 10.0, back_pos).into(),
-    //     (-10.0, 10.0, back_pos).into(),
-    //     (-10.0, -10.0, back_pos).into(),
-    //     Material::new(phong, color),
-    // );
-    // objects.push(object);
+    let back_pos = -8.0;
+    let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
+    let color = TextureType::new_flat(Color::blue() * Color::grayscale(0.5));
+    let object = Object::new_quad(
+        (10.0, -10.0, back_pos).into(),
+        (10.0, 10.0, back_pos).into(),
+        (-10.0, 10.0, back_pos).into(),
+        (-10.0, -10.0, back_pos).into(),
+        Material::new(phong, color),
+    );
+    objects.push(object);
 
     let mut rng = StdRng::seed_from_u64(248);
     for _ in 0..num_spheres {
@@ -143,7 +143,7 @@ pub fn load_random_spheres(num_spheres: u16) -> (Vec<Object>, Vec<Light>) {
 
     // add some reflective spheres in the middle
     let mut add_sphere = |point, color| {
-        let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
+        let phong = MaterialType::new_phong(1.0, 0.6, 1.0);
         let mirror = MaterialType::Reflective;
         let object = Object::new_sphere(point, 0.5,
             Material::new(
@@ -156,9 +156,11 @@ pub fn load_random_spheres(num_spheres: u16) -> (Vec<Object>, Vec<Light>) {
     add_sphere((1.5,0.5,0.5).into(), Color::blue());
     add_sphere((-1.5,0.5,-0.5).into(), Color::yellow());
 
-    let light = Light::new((1.0, 2.0, 2.5).into(), (1.0, 1.0, 1.0).into());
+    let light = Light::new_point((1.0, 2.0, 2.5).into(), Color::white());
     lights.push(light);
-    let light = Light::new((-2.0, 2.0, 1.).into(), (1.0, 1.0, 1.0).into());
+    let light = Light::new_point((-2.0, 2.0, 1.).into(), Color::white());
+    lights.push(light);
+    let light = Light::new_ambient(Color::grayscale(0.1));
     lights.push(light);
 
     (objects, lights)

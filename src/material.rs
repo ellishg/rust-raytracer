@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use super::color::Color;
-use super::light::Light;
+use super::light::{Light, LightType};
 use super::object::Object;
 use super::ray::Ray;
 use super::utils::{clamp, reflect, refract};
@@ -134,13 +134,14 @@ impl MaterialType {
                 lights
                     .iter()
                     .map(|light| {
-                        match light.get_light_ray(intersection_point) {
-                            None => light.color,
-                            Some(light_ray) => {
+                        match light.light_type {
+                            LightType::Ambient => surface_color * light.color,
+                            LightType::Point(position) => {
+                                let light_dir = intersection_point - position;
+                                let light_ray = Ray::new(position, light_dir);
                                 // TODO: Give falloff code to Light.
-                                let falloff =
-                                    5.0 / (0.001 + (intersection_point - light.position).magnitude2());
-                                let light_color = falloff * light.color + Color::rgb(0.1, 0.1, 0.2);
+                                let falloff = 5.0 / (0.001 + light_dir.magnitude2());
+                                let light_color = falloff * light.color;
                                 let reflection_vector = reflect(light_ray.get_direction(), normal);
                                 let specular_intensity = clamp(
                                     -reflection_vector.dot(incoming_ray.get_direction()),
