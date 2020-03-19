@@ -103,43 +103,58 @@ pub fn load_random_spheres(num_spheres: u16) -> (Vec<Object>, Vec<Light>) {
     let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
     let color = TextureType::new_flat(Color::grayscale(0.2));
     let object = Object::new_quad(
-        (-10.0, 0.0, 10.0).into(),
+        (-100.0, 0.0, 10.0).into(),
         (10.0, 0.0, 10.0).into(),
         (10.0, 0.0, -10.0).into(),
-        (-01.0, 0.0, -10.0).into(),
+        (-100.0, 0.0, -10.0).into(),
         Material::new(phong, color),
     );
     objects.push(object);
 
     // back plane
-    let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
-    let color = TextureType::new_flat(Color::grayscale(0.8));
-    let object = Object::new_quad(
-        (10.0, -10.0, -3.0).into(),
-        (10.0, 10.0, -3.0).into(),
-        (-10.0, 10.0, -3.0).into(),
-        (-10.0, -10.0, -3.0).into(),
-        Material::new(phong, color),
-    );
-    objects.push(object);
+    // let back_pos = -4.0;
+    // let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
+    // let color = TextureType::new_flat(Color::grayscale(0.8));
+    // let object = Object::new_quad(
+    //     (10.0, -10.0, back_pos).into(),
+    //     (10.0, 10.0, back_pos).into(),
+    //     (-10.0, 10.0, back_pos).into(),
+    //     (-10.0, -10.0, back_pos).into(),
+    //     Material::new(phong, color),
+    // );
+    // objects.push(object);
 
     let mut rng = StdRng::seed_from_u64(248);
     for _ in 0..num_spheres {
         let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
-        let r: f32 = rng.gen_range(0.2, 1.);
-        let g: f32 = rng.gen_range(0.2, 1.);
-        let b: f32 = rng.gen_range(0.2, 1.);
-        let a: f32 = rng.gen_range(0.5, 1.);
-        let color = TextureType::new_flat(Color::rgba(r, g, b, a));
+        let r: f32 = rng.gen_range(0.5, 1.);
+        let g: f32 = rng.gen_range(0.5, 1.);
+        let b: f32 = rng.gen_range(0.5, 1.);
+        let color = TextureType::new_flat(Color::rgb(r, g, b));
 
-        let x: f32 = rng.gen_range(-2.5, 2.5);
-        let y: f32 = rng.gen_range(0., 2.);
-        let z: f32 = rng.gen_range(-3., 3.);
-        let r: f32 = rng.gen_range(0.05, 0.2);
+        let x: f32 = rng.gen_range(-3., 3.);
+        let y: f32 = rng.gen_range(0.1, 0.2);
+        let z: f32 = rng.gen_range(-3., 3.5);
+        let r: f32 = rng.gen_range(0.05, y);
 
         let object = Object::new_sphere((x, y, z).into(), r, Material::new(phong, color));
         objects.push(object);
     }
+
+    // add some reflective spheres in the middle
+    let mut add_sphere = |point, color| {
+        let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
+        let mirror = MaterialType::Reflective;
+        let object = Object::new_sphere(point, 0.5,
+            Material::new(
+                MaterialType::Composition(vec![(mirror, 0.6), (phong, 0.4)]),
+                TextureType::new_flat(color),
+            ));
+        objects.push(object);
+    };
+    add_sphere((0.,0.5,0.).into(), Color::red());
+    add_sphere((1.5,0.5,0.5).into(), Color::blue());
+    add_sphere((-1.5,0.5,-0.5).into(), Color::yellow());
 
     let light = Light::new((1.0, 2.0, 2.5).into(), (1.0, 1.0, 1.0).into());
     lights.push(light);

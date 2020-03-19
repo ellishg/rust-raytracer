@@ -61,7 +61,7 @@ fn main() {
                      Used for reflection and refraction.",
                 )
                 .required(false)
-                .default_value("10"),
+                .default_value("3"),
         )
         .arg(
             Arg::with_name("pixel_width")
@@ -72,24 +72,24 @@ fn main() {
                      Specifically, changes the width/height of the camera viewport.",
                 )
                 .required(false)
-                .default_value("500"),
+                .default_value("2000"),
         )
         .get_matches();
 
     let mut objects = vec![];
     let mut lights = vec![];
 
-    let (new_objects, new_lights) = load_basic();
-    objects.extend(new_objects);
-    lights.extend(new_lights);
-
-    let (new_objects, new_lights) = load_suzanne();
-    objects.extend(new_objects);
-    lights.extend(new_lights);
-
-    // let (new_objects, new_lights) = load_random_spheres(30);
+    // let (new_objects, new_lights) = load_basic();
     // objects.extend(new_objects);
     // lights.extend(new_lights);
+
+    // let (new_objects, new_lights) = load_suzanne();
+    // objects.extend(new_objects);
+    // lights.extend(new_lights);
+
+    let (new_objects, new_lights) = load_random_spheres(100);
+    objects.extend(new_objects);
+    lights.extend(new_lights);
 
     let samples_per_pixel = cl_args
         .value_of("samples_per_pixel")

@@ -134,24 +134,28 @@ impl MaterialType {
                 lights
                     .iter()
                     .map(|light| {
-                        // TODO: Either add ambient component here, or create a new light type.
-                        let light_ray = light.get_light_ray(intersection_point);
-                        // TODO: Give falloff code to Light.
-                        let falloff =
-                            5.0 / (0.001 + (intersection_point - light.position).magnitude2());
-                        let light_color = falloff * light.color;
-                        let reflection_vector = reflect(light_ray.get_direction(), normal);
-                        let specular_intensity = clamp(
-                            -reflection_vector.dot(incoming_ray.get_direction()),
-                            0.0,
-                            1.0,
-                        );
-                        let diffuse_intensity =
-                            clamp(-light_ray.get_direction().dot(normal), 0.0, 1.0);
-                        surface_color
-                            * (diffuse * diffuse_intensity
-                                + specular * specular_intensity.powf(*shininess))
-                            * light_color
+                        match light.get_light_ray(intersection_point) {
+                            None => light.color,
+                            Some(light_ray) => {
+                                // TODO: Give falloff code to Light.
+                                let falloff =
+                                    5.0 / (0.001 + (intersection_point - light.position).magnitude2());
+                                let light_color = falloff * light.color + Color::rgb(0.1, 0.1, 0.2);
+                                let reflection_vector = reflect(light_ray.get_direction(), normal);
+                                let specular_intensity = clamp(
+                                    -reflection_vector.dot(incoming_ray.get_direction()),
+                                    0.0,
+                                    1.0,
+                                );
+                                let diffuse_intensity =
+                                    clamp(-light_ray.get_direction().dot(normal), 0.0, 1.0);
+                                surface_color
+                                    * (diffuse * diffuse_intensity
+                                        + specular * specular_intensity.powf(*shininess))
+                                    * light_color
+                            }
+
+                        }
                     })
                     .fold((0.0, 0.0, 0.0, 0.0).into(), |acc, x| acc + x)
             }
