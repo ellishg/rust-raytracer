@@ -107,13 +107,8 @@ impl MaterialType {
         debug_assert!(f32::abs(normal.magnitude() - 1.) < 1e-4);
         debug_assert!(f32::abs(incoming_direction.magnitude() - 1.) < 1e-4);
         let reflection_vector = reflect(light_direction, normal);
-        let specular_intensity = clamp(
-            -reflection_vector.dot(incoming_direction),
-            0.0,
-            1.0,
-        );
-        let diffuse_intensity =
-            clamp(-light_direction.dot(normal), 0.0, 1.0);
+        let specular_intensity = clamp(-reflection_vector.dot(incoming_direction), 0.0, 1.0);
+        let diffuse_intensity = clamp(-light_direction.dot(normal), 0.0, 1.0);
         diffuse * diffuse_intensity + specular * specular_intensity.powf(shininess)
     }
 
@@ -162,11 +157,25 @@ impl MaterialType {
                                 let light_dir = intersection_point - position;
                                 // TODO: Give falloff code to Light.
                                 let falloff = 5.0 / (0.001 + light_dir.magnitude2());
-                                let phong_multiple = MaterialType::get_phong_multiple(light_dir.normalize(), normal, incoming_ray.get_direction(), *diffuse, *specular, *shininess);
+                                let phong_multiple = MaterialType::get_phong_multiple(
+                                    light_dir.normalize(),
+                                    normal,
+                                    incoming_ray.get_direction(),
+                                    *diffuse,
+                                    *specular,
+                                    *shininess,
+                                );
                                 phong_multiple * (falloff * light.color)
                             }
                             LightType::Directional(direction) => {
-                                let phong_multiple = MaterialType::get_phong_multiple(direction, normal, incoming_ray.get_direction(), *diffuse, *specular, *shininess);
+                                let phong_multiple = MaterialType::get_phong_multiple(
+                                    direction,
+                                    normal,
+                                    incoming_ray.get_direction(),
+                                    *diffuse,
+                                    *specular,
+                                    *shininess,
+                                );
                                 phong_multiple * light.color
                             }
                         };

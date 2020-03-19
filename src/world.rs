@@ -144,7 +144,9 @@ impl World {
                             // the opposite direction of the light, hits another object.
                             let object_to_light = Ray::new(intersection_point, -direction);
                             let object_to_light = object_to_light.offset(1e-4);
-                            self.bvh.get_closest_intersection(&object_to_light).is_none()
+                            self.bvh
+                                .get_closest_intersection(&object_to_light)
+                                .is_none()
                         }
                     }
                 })
