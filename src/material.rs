@@ -155,7 +155,6 @@ impl MaterialType {
                                         + specular * specular_intensity.powf(*shininess))
                                     * light_color
                             }
-
                         }
                     })
                     .fold((0.0, 0.0, 0.0, 0.0).into(), |acc, x| acc + x)

@@ -1,4 +1,4 @@
-use cgmath::{MetricSpace, Vector4, Point3};
+use cgmath::{MetricSpace, Point3, Vector4};
 use image;
 use std::error::Error;
 use std::path::Path;
@@ -129,7 +129,9 @@ impl World {
                             let light_to_object_t =
                                 intersection_point.distance(light_ray.get_point_on_ray(0.0).into());
                             // TODO: Shadows don't work correctly with reflective or refractive surfaces.
-                            if let Some((_, shadow_t)) = self.bvh.get_closest_intersection(&light_ray) {
+                            if let Some((_, shadow_t)) =
+                                self.bvh.get_closest_intersection(&light_ray)
+                            {
                                 let epsilon = 1e-4;
                                 let is_in_shadow = shadow_t + epsilon < light_to_object_t;
                                 !is_in_shadow

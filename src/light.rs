@@ -13,10 +13,16 @@ pub struct Light {
 
 impl Light {
     pub fn new_point(position: Point3<f32>, color: Color) -> Light {
-        Light { color, light_type: LightType::Point(position) }
+        Light {
+            color,
+            light_type: LightType::Point(position),
+        }
     }
 
     pub fn new_ambient(color: Color) -> Light {
-        Light { color, light_type: LightType::Ambient }
+        Light {
+            color,
+            light_type: LightType::Ambient,
+        }
     }
 }

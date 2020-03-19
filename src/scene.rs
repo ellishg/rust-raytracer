@@ -145,16 +145,19 @@ pub fn load_random_spheres(num_spheres: u16) -> (Vec<Object>, Vec<Light>) {
     let mut add_sphere = |point, color| {
         let phong = MaterialType::new_phong(1.0, 0.6, 1.0);
         let mirror = MaterialType::Reflective;
-        let object = Object::new_sphere(point, 0.5,
+        let object = Object::new_sphere(
+            point,
+            0.5,
             Material::new(
                 MaterialType::Composition(vec![(mirror, 0.6), (phong, 0.4)]),
                 TextureType::new_flat(color),
-            ));
+            ),
+        );
         objects.push(object);
     };
-    add_sphere((0.,0.5,0.).into(), Color::red());
-    add_sphere((1.5,0.5,0.5).into(), Color::blue());
-    add_sphere((-1.5,0.5,-0.5).into(), Color::yellow());
+    add_sphere((0., 0.5, 0.).into(), Color::red());
+    add_sphere((1.5, 0.5, 0.5).into(), Color::blue());
+    add_sphere((-1.5, 0.5, -0.5).into(), Color::yellow());
 
     let light = Light::new_point((1.0, 2.0, 2.5).into(), Color::white());
     lights.push(light);
