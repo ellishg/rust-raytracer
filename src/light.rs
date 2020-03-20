@@ -59,23 +59,30 @@ impl Light {
         5.0 / (0.001 + distance_sqrd)
     }
 
-    // pub fn new_cone()
+    fn in_shadow(
+        point: Point3<f32>,
+        light_position: Point3<f32>,
+        light_direction: Vector3<f32>,
+        bvh: &Bvh,
+    ) -> bool {
+        let light_ray = Ray::new(light_position, light_direction);
+        let light_to_point_t = point.distance(light_position);
+        // TODO: Shadows don't work correctly with reflective or refractive surfaces.
+        if let Some((_, shadow_t)) = bvh.get_closest_intersection(&light_ray) {
+            let epsilon = 1e-4;
+            let is_in_shadow = shadow_t + epsilon < light_to_point_t;
+            !is_in_shadow
+        } else {
+            false
+        }
+    }
 
     pub fn reaches_point(&self, point: Point3<f32>, bvh: &Bvh) -> bool {
         match self.light_type {
             LightType::Ambient => true,
             LightType::Point(light_position) => {
                 let light_direction = point - light_position;
-                let light_ray = Ray::new(light_position, light_direction);
-                let light_to_point_t = point.distance(light_position);
-                // TODO: Shadows don't work correctly with reflective or refractive surfaces.
-                if let Some((_, shadow_t)) = bvh.get_closest_intersection(&light_ray) {
-                    let epsilon = 1e-4;
-                    let is_in_shadow = shadow_t + epsilon < light_to_point_t;
-                    !is_in_shadow
-                } else {
-                    false
-                }
+                Light::in_shadow(point, light_position, light_direction, bvh)
             }
             LightType::Directional(direction) => {
                 // Checks whether a ray starting from the intersection point, going in
@@ -90,16 +97,7 @@ impl Light {
                 if direction.angle(light_direction) > angle.into() {
                     false
                 } else {
-                    let light_ray = Ray::new(light_position, light_direction);
-                    let light_to_point_t = point.distance(light_position);
-                    // TODO: Shadows don't work correctly with reflective or refractive surfaces.
-                    if let Some((_, shadow_t)) = bvh.get_closest_intersection(&light_ray) {
-                        let epsilon = 1e-4;
-                        let is_in_shadow = shadow_t + epsilon < light_to_point_t;
-                        !is_in_shadow
-                    } else {
-                        false
-                    }
+                    Light::in_shadow(point, light_position, light_direction, bvh)
                 }
             }
         }
