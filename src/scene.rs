@@ -38,17 +38,17 @@ pub fn load_basic() -> (Vec<Object>, Vec<Light>) {
     let object = object.transform(object_to_world);
     objects.push(object);
 
-    // // Create a mirror sphere
-    // let mirror = MaterialType::Reflective;
-    // let phong = MaterialType::new_phong(0.4, 0.6, 1.8);
-    // let material_type = MaterialType::Composition(vec![(mirror, 0.4), (phong, 0.6)]);
-    // let color = TextureType::new_flat(Color::blue());
-    // let object = Object::new_sphere(
-    //     (-1.0, 0.0, 0.0).into(),
-    //     1.0,
-    //     Material::new(material_type, color),
-    // );
-    // objects.push(object);
+    // Create a mirror sphere
+    let mirror = MaterialType::Reflective;
+    let phong = MaterialType::new_phong(0.4, 0.6, 1.8);
+    let material_type = MaterialType::Composition(vec![(mirror, 0.4), (phong, 0.6)]);
+    let color = TextureType::new_flat(Color::blue());
+    let object = Object::new_sphere(
+        (-2.0, 0.0, -2.0).into(),
+        1.0,
+        Material::new(material_type, color),
+    );
+    objects.push(object);
 
     // Create a transparent sphere
     // The index of refraction for glass is about 1.69.
@@ -74,21 +74,34 @@ pub fn load_basic() -> (Vec<Object>, Vec<Light>) {
     );
     objects.push(object);
 
-    // Create a textured triangle.
-    let phong = MaterialType::new_phong(1.0, 0.0, 1.0);
-    let object = Object::new_triangle(
-        (-0.5, 1.0, 1.0).into(),
-        (0.5, 1.0, 1.0).into(),
-        (0.0, 2.0, 1.0).into(),
-        Material::new(phong, texture.clone()),
-    );
-    objects.push(object);
-
     let light = Light::new_point((2.0, 3.0, 0.5).into(), (1.0, 1.0, 1.0).into());
     lights.push(light);
-    let light = Light::new_point((1.0, 2.0, 2.5).into(), (1.0, 1.0, 1.0).into());
+
+    let light = Light::new_cone(
+        (-1.5, 2.0, 0.0).into(),
+        (1.0, -1.0, 0.0).into(),
+        Deg(50.0),
+        Color::red(),
+    );
     lights.push(light);
-    let light = Light::new_point((-4.0, 2.0, 2.0).into(), (1.0, 1.0, 1.0).into());
+
+    let light = Light::new_cone(
+        (1.5, 2.0, 0.0).into(),
+        (-1.0, -1.0, 0.0).into(),
+        Deg(50.0),
+        Color::blue(),
+    );
+    lights.push(light);
+
+    let light = Light::new_cone(
+        (0.0, 2.0, 1.5).into(),
+        (0.0, -1.0, -1.0).into(),
+        Deg(50.0),
+        Color::green(),
+    );
+    lights.push(light);
+
+    let light = Light::new_ambient(Color::grayscale(0.2));
     lights.push(light);
 
     (objects, lights)

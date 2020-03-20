@@ -121,35 +121,7 @@ impl World {
             let illuminating_lights = self
                 .lights
                 .iter()
-                .filter(|light| {
-                    match light.light_type {
-                        LightType::Ambient => true,
-                        LightType::Point(position) => {
-                            let light_ray = Ray::new(position, intersection_point - position);
-                            let light_to_object_t =
-                                intersection_point.distance(light_ray.get_point_on_ray(0.0).into());
-                            // TODO: Shadows don't work correctly with reflective or refractive surfaces.
-                            if let Some((_, shadow_t)) =
-                                self.bvh.get_closest_intersection(&light_ray)
-                            {
-                                let epsilon = 1e-4;
-                                let is_in_shadow = shadow_t + epsilon < light_to_object_t;
-                                !is_in_shadow
-                            } else {
-                                false
-                            }
-                        }
-                        LightType::Directional(direction) => {
-                            // Checks whether a ray starting from the intersection point, going in
-                            // the opposite direction of the light, hits another object.
-                            let object_to_light = Ray::new(intersection_point, -direction);
-                            let object_to_light = object_to_light.offset(1e-4);
-                            self.bvh
-                                .get_closest_intersection(&object_to_light)
-                                .is_none()
-                        }
-                    }
-                })
+                .filter(|light| light.reaches_point(intersection_point, &self.bvh))
                 .collect();
             object.get_color(&ray, t, illuminating_lights, self, max_depth - 1)
         } else {

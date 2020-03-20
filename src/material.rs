@@ -153,10 +153,10 @@ impl MaterialType {
                     .map(|light| {
                         let light_color = match light.light_type {
                             LightType::Ambient => light.color,
-                            LightType::Point(position) => {
+                            LightType::Point(position) | LightType::Cone(position, _, _) => {
                                 let light_dir = position - intersection_point;
                                 // TODO: Give falloff code to Light.
-                                let falloff = 5.0 / (0.001 + light_dir.magnitude2());
+                                let falloff = Light::get_falloff(light_dir.magnitude2());
                                 let phong_multiple = MaterialType::get_phong_multiple(
                                     light_dir.normalize(),
                                     normal,

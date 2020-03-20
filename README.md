@@ -6,7 +6,7 @@
 - Lights
   - [x] Ambient
   - [x] Point
-  - [ ] Cone
+  - [x] Cone
   - [x] Directional
 - Shadows
   - [ ] Soft shadows

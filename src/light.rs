@@ -1,13 +1,18 @@
+use super::bvh::Bvh;
 use super::color::Color;
-use cgmath::{InnerSpace, Point3, Vector3};
+use super::ray::Ray;
+use cgmath::{Deg, InnerSpace, MetricSpace, Point3, Vector3};
 
 /// Ambient light has no position or direction
 /// Point lights illumate from a single position
 /// Directional lights represent parallel rays coming from infinitely far away.
+/// Cone lights are a point source in a certain direction, but only illuminate
+///     within an angle of the direction.
 pub enum LightType {
     Ambient,
-    Point(Point3<f32>),        // position
-    Directional(Vector3<f32>), // direction of parallel light rays
+    Point(Point3<f32>),                        // position
+    Directional(Vector3<f32>),                 // direction of parallel light rays
+    Cone(Point3<f32>, Vector3<f32>, Deg<f32>), // position, direction, angle
 }
 
 pub struct Light {
@@ -34,6 +39,69 @@ impl Light {
         Light {
             color,
             light_type: LightType::Directional(direction.normalize()),
+        }
+    }
+
+    pub fn new_cone(
+        position: Point3<f32>,
+        direction: Vector3<f32>,
+        angle: Deg<f32>,
+        color: Color,
+    ) -> Light {
+        Light {
+            color,
+            light_type: LightType::Cone(position, direction.normalize(), angle),
+        }
+    }
+
+    pub fn get_falloff(distance_sqrd: f32) -> f32 {
+        // TODO: Remove constants here.
+        5.0 / (0.001 + distance_sqrd)
+    }
+
+    // pub fn new_cone()
+
+    pub fn reaches_point(&self, point: Point3<f32>, bvh: &Bvh) -> bool {
+        match self.light_type {
+            LightType::Ambient => true,
+            LightType::Point(light_position) => {
+                let light_direction = point - light_position;
+                let light_ray = Ray::new(light_position, light_direction);
+                let light_to_point_t = point.distance(light_position);
+                // TODO: Shadows don't work correctly with reflective or refractive surfaces.
+                if let Some((_, shadow_t)) = bvh.get_closest_intersection(&light_ray) {
+                    let epsilon = 1e-4;
+                    let is_in_shadow = shadow_t + epsilon < light_to_point_t;
+                    !is_in_shadow
+                } else {
+                    false
+                }
+            }
+            LightType::Directional(direction) => {
+                // Checks whether a ray starting from the intersection point, going in
+                // the opposite direction of the light, hits another object.
+                let object_to_light = Ray::new(point, -direction);
+                let object_to_light = object_to_light.offset(1e-4);
+                bvh.get_closest_intersection(&object_to_light).is_none()
+            }
+            LightType::Cone(light_position, direction, angle) => {
+                let direction = direction.normalize();
+                let light_direction = point - light_position;
+                if direction.angle(light_direction) > angle.into() {
+                    false
+                } else {
+                    let light_ray = Ray::new(light_position, light_direction);
+                    let light_to_point_t = point.distance(light_position);
+                    // TODO: Shadows don't work correctly with reflective or refractive surfaces.
+                    if let Some((_, shadow_t)) = bvh.get_closest_intersection(&light_ray) {
+                        let epsilon = 1e-4;
+                        let is_in_shadow = shadow_t + epsilon < light_to_point_t;
+                        !is_in_shadow
+                    } else {
+                        false
+                    }
+                }
+            }
         }
     }
 }
