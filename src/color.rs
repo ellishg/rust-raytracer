@@ -100,7 +100,7 @@ impl std::ops::Mul<f32> for Color {
 impl std::ops::Div<f32> for Color {
     type Output = Self;
     fn div(self, rhs: f32) -> Self {
-        assert!(rhs != 0.);
+        debug_assert!(rhs != 0.);
         Color::rgba(self.r / rhs, self.g / rhs, self.b / rhs, self.a / rhs)
     }
 }

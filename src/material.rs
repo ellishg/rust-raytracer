@@ -1,11 +1,11 @@
-use cgmath::{InnerSpace, Point3};
+use cgmath::{InnerSpace, Point3, Vector3};
 use image;
 use std::error::Error;
 use std::path::Path;
 use std::sync::Arc;
 
 use super::color::Color;
-use super::light::Light;
+use super::light::{Light, LightType};
 use super::object::Object;
 use super::ray::Ray;
 use super::utils::{clamp, reflect, refract};
@@ -95,6 +95,23 @@ impl MaterialType {
         }
     }
 
+    fn get_phong_multiple(
+        dir_to_light: Vector3<f32>,
+        normal: Vector3<f32>,
+        incoming_direction: Vector3<f32>,
+        diffuse: f32,
+        specular: f32,
+        shininess: f32,
+    ) -> f32 {
+        debug_assert!(f32::abs(dir_to_light.magnitude() - 1.) < 1e-4);
+        debug_assert!(f32::abs(normal.magnitude() - 1.) < 1e-4);
+        debug_assert!(f32::abs(incoming_direction.magnitude() - 1.) < 1e-4);
+        let reflection_vector = reflect(dir_to_light, normal);
+        let specular_intensity = clamp(-reflection_vector.dot(incoming_direction), 0.0, 1.0);
+        let diffuse_intensity = clamp(dir_to_light.dot(normal), 0.0, 1.0);
+        diffuse * diffuse_intensity + specular * specular_intensity.powf(shininess)
+    }
+
     /// Returns the color of `object` at the point given by `incoming_ray.get_point_on_ray(t)`.
     ///
     /// All arguments are in world space coordinates.
@@ -134,24 +151,35 @@ impl MaterialType {
                 lights
                     .iter()
                     .map(|light| {
-                        // TODO: Either add ambient component here, or create a new light type.
-                        let light_ray = light.get_light_ray(intersection_point);
-                        // TODO: Give falloff code to Light.
-                        let falloff =
-                            5.0 / (0.001 + (intersection_point - light.position).magnitude2());
-                        let light_color = falloff * light.color;
-                        let reflection_vector = reflect(light_ray.get_direction(), normal);
-                        let specular_intensity = clamp(
-                            -reflection_vector.dot(incoming_ray.get_direction()),
-                            0.0,
-                            1.0,
-                        );
-                        let diffuse_intensity =
-                            clamp(-light_ray.get_direction().dot(normal), 0.0, 1.0);
-                        surface_color
-                            * (diffuse * diffuse_intensity
-                                + specular * specular_intensity.powf(*shininess))
-                            * light_color
+                        let light_color = match light.light_type {
+                            LightType::Ambient => light.color,
+                            LightType::Point(position) | LightType::Cone(position, _, _) => {
+                                let light_dir = position - intersection_point;
+                                // TODO: Give falloff code to Light.
+                                let falloff = Light::get_falloff(light_dir.magnitude2());
+                                let phong_multiple = MaterialType::get_phong_multiple(
+                                    light_dir.normalize(),
+                                    normal,
+                                    incoming_ray.get_direction(),
+                                    *diffuse,
+                                    *specular,
+                                    *shininess,
+                                );
+                                phong_multiple * (falloff * light.color)
+                            }
+                            LightType::Directional(direction) => {
+                                let phong_multiple = MaterialType::get_phong_multiple(
+                                    -direction,
+                                    normal,
+                                    incoming_ray.get_direction(),
+                                    *diffuse,
+                                    *specular,
+                                    *shininess,
+                                );
+                                phong_multiple * light.color
+                            }
+                        };
+                        surface_color * light_color
                     })
                     .fold((0.0, 0.0, 0.0, 0.0).into(), |acc, x| acc + x)
             }

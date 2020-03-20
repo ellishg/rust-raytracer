@@ -1,4 +1,4 @@
-use cgmath::{MetricSpace, Vector4};
+use cgmath::{Point3, Vector4};
 use image;
 use std::error::Error;
 use std::path::Path;
@@ -27,7 +27,7 @@ pub fn render<P>(
 where
     P: AsRef<Path>,
 {
-    assert!(samples_per_pixel != 0);
+    debug_assert!(samples_per_pixel != 0);
     let instant = time::Instant::now();
 
     let world = World::new(camera, objects, lights, background_color);
@@ -117,23 +117,11 @@ impl World {
             self.background_color
         } else if let Some((object, t)) = self.bvh.get_closest_intersection(ray) {
             // Compute the color of the object that the ray first hits.
-            let intersection_point = ray.get_point_on_ray(t).into();
+            let intersection_point = Point3::<f32>::from(ray.get_point_on_ray(t));
             let illuminating_lights = self
                 .lights
                 .iter()
-                .filter(|light| {
-                    let light_ray = light.get_light_ray(intersection_point);
-                    let light_to_object_t =
-                        intersection_point.distance(light_ray.get_point_on_ray(0.0).into());
-                    // TODO: Shadows don't work correctly with reflective or refractive surfaces.
-                    if let Some((_, shadow_t)) = self.bvh.get_closest_intersection(&light_ray) {
-                        let epsilon = 1e-4;
-                        let is_in_shadow = shadow_t + epsilon < light_to_object_t;
-                        !is_in_shadow
-                    } else {
-                        false
-                    }
-                })
+                .filter(|light| light.reaches_point(intersection_point, &self.bvh))
                 .collect();
             object.get_color(&ray, t, illuminating_lights, self, max_depth - 1)
         } else {

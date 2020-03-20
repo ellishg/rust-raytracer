@@ -61,7 +61,7 @@ fn main() {
                      Used for reflection and refraction.",
                 )
                 .required(false)
-                .default_value("10"),
+                .default_value("4"),
         )
         .arg(
             Arg::with_name("pixel_width")
@@ -83,11 +83,11 @@ fn main() {
     objects.extend(new_objects);
     lights.extend(new_lights);
 
-    let (new_objects, new_lights) = load_suzanne();
-    objects.extend(new_objects);
-    lights.extend(new_lights);
+    // let (new_objects, new_lights) = load_suzanne();
+    // objects.extend(new_objects);
+    // lights.extend(new_lights);
 
-    // let (new_objects, new_lights) = load_random_spheres(30);
+    // let (new_objects, new_lights) = load_random_spheres(150);
     // objects.extend(new_objects);
     // lights.extend(new_lights);
 

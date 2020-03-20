@@ -44,9 +44,9 @@ struct AABB {
 
 impl AABB {
     fn new(min: Point3<f32>, max: Point3<f32>) -> Self {
-        assert!(min.x <= max.x);
-        assert!(min.y <= max.y);
-        assert!(min.z <= max.z);
+        debug_assert!(min.x <= max.x);
+        debug_assert!(min.y <= max.y);
+        debug_assert!(min.z <= max.z);
         AABB { min, max }
     }
 
@@ -259,8 +259,8 @@ fn bvh_split_by_sah(
             b_ind -= 1;
         }
 
-        assert!(b_ind >= 0);
-        assert!(b_ind < N_BUCKETS.into());
+        debug_assert!(b_ind >= 0);
+        debug_assert!(b_ind < N_BUCKETS.into());
         let b_ind = b_ind as usize;
 
         let (obj_min, obj_max) = objects[i].get_bounding_box();

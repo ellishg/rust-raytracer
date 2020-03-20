@@ -18,7 +18,7 @@ pub fn reflect(v: Vector3<f32>, normal: Vector3<f32>) -> Vector3<f32> {
 
 /// Returns the (min, max) of each dimension for the collection of points.
 pub fn component_wise_range(points: &Vec<Point3<f32>>) -> (Point3<f32>, Point3<f32>) {
-    assert!(!points.is_empty());
+    debug_assert!(!points.is_empty());
     let min = points.iter().fold(Point3::<f32>::max_value(), |a, b| {
         (f32::min(a.x, b.x), f32::min(a.y, b.y), f32::min(a.z, b.z)).into()
     });
