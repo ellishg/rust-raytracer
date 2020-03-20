@@ -1,4 +1,4 @@
-use cgmath::{MetricSpace, Point3, Vector4};
+use cgmath::{Point3, Vector4};
 use image;
 use std::error::Error;
 use std::path::Path;
@@ -9,7 +9,7 @@ use time;
 use super::bvh::Bvh;
 use super::camera::Camera;
 use super::color::Color;
-use super::light::{Light, LightType};
+use super::light::Light;
 use super::object::Object;
 use super::ray::Ray;
 
