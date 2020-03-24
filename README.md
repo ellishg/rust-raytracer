@@ -13,6 +13,11 @@ Use `cargo` to build, test, and run the code. For optimal performace, use the re
 cargo run --release -- -f out.png -w 1024
 ```
 
+To print useful timing information, set the environment variable `RUST_LOG`.
+```bash
+RUST_LOG=debug cargo run --release
+```
+
 ## Testing
 ```bash
 cargo test
