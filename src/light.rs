@@ -1,6 +1,7 @@
 use super::bvh::Bvh;
 use super::color::Color;
 use super::ray::Ray;
+use super::utils::clamp;
 use cgmath::{Deg, InnerSpace, MetricSpace, Point3, Vector3};
 
 /// Ambient light has no position or direction
@@ -54,9 +55,27 @@ impl Light {
         }
     }
 
-    pub fn get_falloff(distance_sqrd: f32) -> f32 {
-        // TODO: Remove constants here.
-        5.0 / (0.001 + distance_sqrd)
+    pub fn get_falloff_at(&self, point: Point3<f32>) -> f32 {
+        match self.light_type {
+            LightType::Point(position) => {
+                let distance_sqrd = (position - point).magnitude2();
+                // TODO: Remove constants here.
+                5.0 / (0.001 + distance_sqrd)
+            }
+            LightType::Cone(position, direction, angle) => {
+                let cone_falloff = {
+                    // TODO: Make this a field.
+                    let falloff_range: Deg<f32> = Deg(8.0);
+                    let angle_to_point: Deg<f32> = direction.angle(point - position).into();
+                    let angle_delta = angle - angle_to_point;
+                    clamp(angle_delta / falloff_range, 0.0, 1.0)
+                };
+                let distance_sqrd = (position - point).magnitude2();
+                // TODO: Remove constants here.
+                cone_falloff * 5.0 / (0.001 + distance_sqrd)
+            }
+            _ => unreachable!(),
+        }
     }
 
     fn in_shadow(
@@ -92,7 +111,6 @@ impl Light {
                 bvh.get_closest_intersection(&object_to_light).is_none()
             }
             LightType::Cone(light_position, direction, angle) => {
-                let direction = direction.normalize();
                 let light_direction = point - light_position;
                 if direction.angle(light_direction) > angle.into() {
                     false

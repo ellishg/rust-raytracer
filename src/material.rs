@@ -155,8 +155,7 @@ impl MaterialType {
                             LightType::Ambient => light.color,
                             LightType::Point(position) | LightType::Cone(position, _, _) => {
                                 let light_dir = position - intersection_point;
-                                // TODO: Give falloff code to Light.
-                                let falloff = Light::get_falloff(light_dir.magnitude2());
+                                let falloff = light.get_falloff_at(intersection_point);
                                 let phong_multiple = MaterialType::get_phong_multiple(
                                     light_dir.normalize(),
                                     normal,
