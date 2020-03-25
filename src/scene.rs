@@ -147,9 +147,9 @@ pub fn load_random_spheres(num_spheres: u16) -> (Vec<Object>, Vec<Light>) {
         let color = TextureType::new_flat(Color::rgb(r, g, b));
 
         let x: f32 = rng.gen_range(-4., 4.0);
-        let y: f32 = rng.gen_range(0.1, 0.2);
+        let y: f32 = rng.gen_range(0.1, 2.5);
         let z: f32 = rng.gen_range(-6., 3.5);
-        let r: f32 = rng.gen_range(0.05, y);
+        let r: f32 = rng.gen_range(0.05, 0.15);
 
         let object = Object::new_sphere((x, y, z).into(), r, Material::new(phong, color));
         objects.push(object);
@@ -177,7 +177,7 @@ pub fn load_random_spheres(num_spheres: u16) -> (Vec<Object>, Vec<Light>) {
     lights.push(light);
     let light = Light::new_point((-2.0, 2.0, 1.).into(), Color::white());
     lights.push(light);
-    let light = Light::new_ambient(Color::grayscale(0.1));
+    let light = Light::new_ambient(Color::grayscale(0.2));
     lights.push(light);
     let light = Light::new_directional((-0.2, -1., -0.9).into(), Color::grayscale(0.3));
     lights.push(light);
