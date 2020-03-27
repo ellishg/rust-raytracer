@@ -1,5 +1,5 @@
 # rust-raytracer
-[![Build Status](https://travis-ci.com/ellishg/rust-raytracer.svg?token=g46Mfub8GMWqdPYXVqEs&branch=master)](https://travis-ci.com/ellishg/rust-raytracer)
+[![Build Status](https://travis-ci.org/ellishg/rust-raytracer.svg?branch=master)](https://travis-ci.org/ellishg/rust-raytracer)
 
 A final project for Stanford's CS248 http://cs248.stanford.edu/winter20.
 
